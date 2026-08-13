@@ -1,5 +1,6 @@
 import type { TabletFs } from "./fs.js";
 import { extractEpubText, extractPdfText } from "./pdf.js";
+import { mermaidToStrokes } from "./mermaid.js";
 import {
   appendStrokes,
   blankPage,
@@ -396,6 +397,10 @@ export function createApi(fs: TabletFs) {
     return { ...(await afterWrite(rec)), page };
   };
 
+  const writeMermaid = async (opts: { notebook: string; mermaid: string; page?: number }): Promise<Item> => {
+    return writeInk({ notebook: opts.notebook, page: opts.page, strokes: mermaidToStrokes(opts.mermaid) });
+  };
+
   const writeText = async (opts: {
     notebook: string;
     text?: string;
@@ -493,6 +498,7 @@ export function createApi(fs: TabletFs) {
     addPage,
     removePage,
     writeInk,
+    writeMermaid,
     writeText,
     tag,
     tags,

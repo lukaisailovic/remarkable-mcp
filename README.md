@@ -114,6 +114,7 @@ A **notebook** is the file (name, path `/Work/Notes`, or UUID). A **page** is 1-
 | `mkdir` / `move` / `rename` / `remove` | Folders and trash |
 | `createNotebook` / `addPage` / `removePage` | Notebooks and pages |
 | `writeInk({ notebook, strokes, page? })` | Pen / highlighter strokes |
+| `writeMermaid({ notebook, mermaid, page? })` | Mermaid → ink (flowchart, sequence, state, class, ER, xychart) |
 | `writeText({ notebook, text?, style?, checked?, blocks?, page?, newPage?, replace? })` | Native Type Folio: `title` `heading` `body` `bullet` `checkbox`. Stacks unless `replace`. |
 | `tag({ notebook, tag, remove?, page? })` / `tags()` | Notebook or page tags |
 | `refresh()` | Restart xochitl |

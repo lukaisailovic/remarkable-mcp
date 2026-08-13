@@ -16,6 +16,7 @@ pnpm, Node 22+, TypeScript ESM (`NodeNext`). Imports end in `.js`. No `enum`s, n
 | `src/fs.ts` | `MemoryFs` / `LocalFs` / `SshFs` |
 | `src/xochitl.ts` | `.metadata` / `.content` JSON |
 | `src/rm.ts` | `.rm` strokes, SVG/PNG |
+| `src/mermaid.ts` | Mermaid → SVG (`beautiful-mermaid`) → ink |
 | `src/pdf.ts` | PDF/EPUB text (`unpdf`, `jszip`) |
 | `src/server.ts` | MCP wrap → `remarkable_execute` |
 | `src/http.ts` | Streamable HTTP `/mcp` |

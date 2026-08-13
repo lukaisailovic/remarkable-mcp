@@ -83,6 +83,7 @@ Useful calls:
 - `rme.mkdir` / `rme.move` / `rme.rename` / `rme.remove` (trash)
 - `rme.createNotebook` / `rme.addPage` / `rme.removePage`
 - `rme.writeInk({ notebook, strokes, page? })` points are `[x,y]` in 0–1
+- `rme.writeMermaid({ notebook, mermaid, page? })` flowchart / sequence / state / class / ER / xychart → ink
 - `rme.writeText({ notebook, text?, style?, checked?, blocks?, page?, newPage?, replace? })` — `title` `heading` `body` `bullet` `checkbox`
 - `rme.tag({ notebook, tag, remove?, page? })` / `rme.tags()`
 - `rme.refresh()` restarts xochitl

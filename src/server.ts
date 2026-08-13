@@ -117,6 +117,12 @@ export async function createMcpServer(api: Remarkable): Promise<McpServer> {
     page: z.number().optional(),
   }, { readOnlyHint: false }, (a) => api.writeInk(a));
 
+  tool("writeMermaid", "Draw a Mermaid diagram as ink (flowchart, sequence, state, class, ER, xychart). Renders to SVG then strokes. pie/gantt/etc. error.", {
+    notebook,
+    mermaid: z.string(),
+    page: z.number().optional(),
+  }, { readOnlyHint: false }, (a) => api.writeMermaid(a));
+
   tool("writeText", "Append native Type Folio text to a notebook page (default: last page). style: title (big), heading, body (small), bullet, checkbox. checked:true ticks a checkbox. blocks: mixed styles in one call. replace:true overwrites typed text (ink stays). newPage:true adds a blank page first. Repeated calls stack as new paragraphs.", {
     notebook,
     text: z.string().optional(),
