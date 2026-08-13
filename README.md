@@ -33,15 +33,9 @@ remarkable_execute({          node:vm sandbox                      SSH/SFTP
 
 ## Install
 
-```bash
-npx -y @lukaisailovic/remarkable-mcp
-```
+Node 22+. No clone required.
 
-Node 22+.
-
-### Local (stdio)
-
-Most desktop MCP clients spawn a process. Add this (Claude Desktop, Cursor, VS Code, …):
+### Claude Desktop, Cursor, VS Code, …
 
 ```json
 {
@@ -59,23 +53,18 @@ Most desktop MCP clients spawn a process. Add this (Claude Desktop, Cursor, VS C
 }
 ```
 
-From a clone instead: `pnpm install && pnpm build`, then `"command": "node"` and `"args": ["/absolute/path/to/remarkable-mcp/dist/index.js"]`.
-
 Prefer a key? Set `REMARKABLE_KEY` to a private-key path (or the PEM). If unset, `~/.ssh/id_ed25519` then `id_rsa` are tried.
 
-### HTTP / Docker
+### HTTP
 
 Same server, [Streamable HTTP](https://modelcontextprotocol.io) on `/mcp`:
 
 ```bash
-pnpm start:http
+npx -y @lukaisailovic/remarkable-mcp --http
 # → http://127.0.0.1:8080/mcp    health: /health
 ```
 
-```bash
-docker compose up --build
-# bind 0.0.0.0:8080, pass REMARKABLE_* in the environment
-```
+Docker still works from a clone: `docker compose up --build` (bind `0.0.0.0:8080`, pass `REMARKABLE_*`).
 
 ---
 
@@ -149,7 +138,7 @@ Flags and env vars are interchangeable (`--host` ≡ `REMARKABLE_HOST`).
 Installable with [skills.sh](https://skills.sh):
 
 ```bash
-npx skills add <this-repo>
+npx skills add lukaisailovic/remarkable-mcp
 ```
 
 The skill lives at [`skills/remarkable-mcp/SKILL.md`](skills/remarkable-mcp/SKILL.md).

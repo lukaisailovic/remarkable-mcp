@@ -11,12 +11,6 @@ The client sees one tool: `remarkable_execute`. Sandbox methods live on `rme`.
 
 ## Install the server
 
-```bash
-npx -y @lukaisailovic/remarkable-mcp
-```
-
-### stdio (local clients)
-
 ```json
 {
   "mcpServers": {
@@ -33,7 +27,7 @@ npx -y @lukaisailovic/remarkable-mcp
 }
 ```
 
-From a clone: `pnpm install && pnpm build`, then `"command": "node"` and `"args": ["/absolute/path/to/remarkable-mcp/dist/index.js"]`.
+HTTP: `npx -y @lukaisailovic/remarkable-mcp --http` → `http://127.0.0.1:8080/mcp`.
 
 ### Streamable HTTP (Docker / remote)
 
