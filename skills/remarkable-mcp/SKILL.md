@@ -56,29 +56,38 @@ Call `remarkable_execute` with a JavaScript async arrow function. Use `rme`.
 
 ```js
 async () => {
-  const docs = await rme.list({});
+  const items = await rme.list({});
   const folder = await rme.mkdir({ name: "Projects" });
   await rme.createNotebook({ name: "Ideas", parent: folder.id });
-  await rme.writeText({ document: "Ideas", text: "Ship it", style: "title", newPage: true });
-  const page = await rme.exportPage({ document: "Ideas", page: 1, format: "png" });
-  return { docs, page: page.mime };
+  await rme.writeText({
+    notebook: "Ideas",
+    newPage: true,
+    blocks: [
+      { text: "Ship it", style: "title" },
+      { text: "Talk to design", style: "checkbox" },
+    ],
+  });
+  await rme.writeText({ notebook: "Ideas", text: "Write the RFC", style: "checkbox" });
+  return { items, page: await rme.read({ notebook: "Ideas", page: 2 }) };
 }
 ```
 
+A **notebook** is the file (UUID, unique name, or `/Folder/Name`). A **page** is 1-based. `writeText` is native Type Folio text and **appends**; use `replace: true` to overwrite typed text.
+
 Useful calls:
 
-- `rme.list({ includeTrash?, folder? })` / `rme.browse({ path? })` / `rme.search({ query, tag? })` / `rme.info({ document })`
-- `rme.read({ document, page? })` PDF/EPUB text, or native Type Folio text on a notebook page; `rme.download({ document })` raw base64
-- `rme.exportPage({ document, page?, format? })` PNG or SVG
+- `rme.list({ includeTrash?, folder? })` / `rme.browse({ path? })` / `rme.search({ query, tag? })` / `rme.info({ notebook })` — notebooks include `pages[].title`
+- `rme.read({ notebook, page? })` paragraphs + checkbox state; omit `page` for every page. PDF/EPUB text. `rme.download({ notebook })` raw base64
+- `rme.exportPage({ notebook, page?, format? })` ink only → PNG or SVG
 - `rme.upload({ name, dataBase64, parent?, fileType? })`
 - `rme.mkdir` / `rme.move` / `rme.rename` / `rme.remove` (trash)
 - `rme.createNotebook` / `rme.addPage` / `rme.removePage`
-- `rme.writeInk({ document, strokes, page? })` points are `[x,y]` in 0–1
-- `rme.writeText({ document, text, page?, newPage?, style? })` — `style: "title"|"heading"|"body"` is the on-device Aa menu (big/small). Omit style for ink glyphs.
-- `rme.tag({ document, tag, remove?, page? })` / `rme.tags()`
+- `rme.writeInk({ notebook, strokes, page? })` points are `[x,y]` in 0–1
+- `rme.writeText({ notebook, text?, style?, checked?, blocks?, page?, newPage?, replace? })` — `title` `heading` `body` `bullet` `checkbox`
+- `rme.tag({ notebook, tag, remove?, page? })` / `rme.tags()`
 - `rme.refresh()` restarts xochitl
 
-Writes restart the UI. Resolve documents by UUID, unique name, or path (`/Work/Notes`).
+Writes restart the UI.
 
 ## Transport
 

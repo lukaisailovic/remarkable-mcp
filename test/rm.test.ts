@@ -63,13 +63,24 @@ describe("rm parse/write", () => {
     expect(() => parseRm(new TextEncoder().encode("not a remarkable file!!!!!!!!!!!!!!"))).toThrow(/unsupported/);
   });
 
-  it("writes native Type Folio title text that parseNativeText reads back", () => {
-    const raw = writeNativeText("Monday", "title");
+  it("writes stackable native title/body/checkbox and keeps ink", () => {
+    const raw = writeNativeText([{ text: "Monday", style: "title" }]);
     expect(new TextDecoder().decode(raw.subarray(0, 43))).toContain("version=6");
     const got = parseNativeText(raw);
     expect(got?.text).toBe("Monday");
-    expect(got?.style).toBe(2);
-    const withInk = pageWithNativeText(appendStrokes(blankPage(), [stroke([[0.1, 0.1], [0.2, 0.2]])]), "Hi", "body");
+    expect(got?.paragraphs).toEqual([{ text: "Monday", style: "title" }]);
+
+    const stacked = pageWithNativeText(raw, [
+      { text: "Walked the dog", style: "body" },
+      { text: "Buy milk", style: "checkbox", checked: false },
+      { text: "Done", style: "checkbox", checked: true },
+    ]);
+    const again = parseNativeText(stacked);
+    expect(again?.paragraphs.map((p) => p.style)).toEqual(["title", "body", "checkbox", "checkbox"]);
+    expect(again?.paragraphs[2]?.checked).toBe(false);
+    expect(again?.paragraphs[3]?.checked).toBe(true);
+
+    const withInk = pageWithNativeText(appendStrokes(blankPage(), [stroke([[0.1, 0.1], [0.2, 0.2]])]), [{ text: "Hi", style: "body" }]);
     expect(parseNativeText(withInk)?.text).toBe("Hi");
     expect(parseRm(withInk).lines.length).toBe(1);
   });

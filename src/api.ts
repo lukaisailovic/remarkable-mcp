@@ -5,12 +5,11 @@ import {
   blankPage,
   linesToPng,
   linesToSvg,
-  maxNormY,
+  linesToParas,
   pageWithNativeText,
   parseNativeText,
   parseRm,
-  textToStrokes,
-  wrapText,
+  type NativePara,
   type StrokeIn,
   type TextStyle,
 } from "./rm.js";
@@ -34,7 +33,7 @@ import {
 export type Item = {
   id: string;
   name: string;
-  type: "document" | "folder";
+  type: "notebook" | "folder" | "pdf" | "epub";
   fileType: string;
   parent: string;
   path: string;
@@ -42,6 +41,16 @@ export type Item = {
   tags: string[];
   lastModified: string;
   trashed: boolean;
+  page?: number;
+  pages?: { page: number; title: string }[];
+};
+
+export type PageText = {
+  fileType: string;
+  page?: number;
+  text: string;
+  paragraphs?: NativePara[];
+  pages?: PageText[];
 };
 
 export type Remarkable = ReturnType<typeof createApi>;
@@ -91,10 +100,17 @@ export function createApi(fs: TabletFs) {
     return cache;
   };
 
+  const kind = (r: Rec): Item["type"] => {
+    if (r.meta.type === "CollectionType") return "folder";
+    const ft = r.content?.fileType ?? "";
+    if (ft === "pdf" || ft === "epub") return ft;
+    return "notebook";
+  };
+
   const view = (r: Rec, pathMap: Map<string, string>): Item => ({
     id: r.id,
     name: r.meta.visibleName,
-    type: r.meta.type === "CollectionType" ? "folder" : "document",
+    type: kind(r),
     fileType: r.content?.fileType ?? "",
     parent: r.meta.parent,
     path: pathMap.get(r.id) ?? `/${r.meta.visibleName}`,
@@ -182,13 +198,42 @@ export function createApi(fs: TabletFs) {
     });
   };
 
-  const info = async (opts: { document: string }): Promise<Item> => {
+  const info = async (opts: { notebook: string }): Promise<Item> => {
     const recs = await load();
-    return view(await resolve(opts.document, Promise.resolve(recs)), paths(recs));
+    const rec = await resolve(opts.notebook, Promise.resolve(recs));
+    const item = view(rec, paths(recs));
+    if (item.type === "notebook") item.pages = await pageSummaries(rec);
+    return item;
   };
 
-  const read = async (opts: { document: string; page?: number }): Promise<{ text: string; fileType: string }> => {
-    const rec = await resolve(opts.document);
+  const readPage = async (rec: Rec, page: number): Promise<PageText> => {
+    const ids = loadPageIds(rec);
+    const pid = ids[page - 1];
+    if (!pid) throw new Error(`page ${page} out of range (1-${ids.length})`);
+    const raw = (await fs.exists(pageFile(rec.id, pid))) ? await fs.readFile(pageFile(rec.id, pid)) : blankPage();
+    const native = parseNativeText(raw);
+    return { fileType: "notebook", page, text: native?.text ?? "", paragraphs: native?.paragraphs ?? [] };
+  };
+
+  const pageSummaries = async (rec: Rec): Promise<{ page: number; title: string }[]> => {
+    const ids = loadPageIds(rec);
+    const out: { page: number; title: string }[] = [];
+    for (let i = 0; i < ids.length; i++) {
+      const pid = ids[i];
+      let title = "";
+      if (pid && (await fs.exists(pageFile(rec.id, pid)))) {
+        const native = parseNativeText(await fs.readFile(pageFile(rec.id, pid)));
+        const paras = native?.paragraphs ?? [];
+        const headed = paras.find((p) => p.style === "title" || p.style === "heading");
+        title = (headed ?? paras[0])?.text ?? "";
+      }
+      out.push({ page: i + 1, title });
+    }
+    return out;
+  };
+
+  const read = async (opts: { notebook: string; page?: number }): Promise<PageText> => {
+    const rec = await resolve(opts.notebook);
     const ft = rec.content?.fileType ?? "";
     if (ft === "pdf" && (await fs.exists(`${rec.id}.pdf`))) {
       return { text: await extractPdfText(await fs.readFile(`${rec.id}.pdf`)), fileType: "pdf" };
@@ -196,18 +241,16 @@ export function createApi(fs: TabletFs) {
     if (ft === "epub" && (await fs.exists(`${rec.id}.epub`))) {
       return { text: await extractEpubText(await fs.readFile(`${rec.id}.epub`)), fileType: "epub" };
     }
+    if (opts.page !== undefined) return readPage(rec, opts.page);
     const ids = loadPageIds(rec);
-    const page = opts.page ?? 1;
-    const pid = ids[page - 1];
-    if (pid && (await fs.exists(pageFile(rec.id, pid)))) {
-      const native = parseNativeText(await fs.readFile(pageFile(rec.id, pid)));
-      if (native?.text) return { text: native.text, fileType: "notebook" };
-    }
-    throw new Error(`no extractable text (fileType=${ft || "notebook"})`);
+    if (!ids.length) return { fileType: "notebook", text: "", pages: [] };
+    const pages: PageText[] = [];
+    for (let i = 1; i <= ids.length; i++) pages.push(await readPage(rec, i));
+    return { fileType: "notebook", text: pages.map((p) => p.text).filter(Boolean).join("\n\n"), pages };
   };
 
-  const download = async (opts: { document: string }): Promise<{ name: string; mime: string; base64: string }> => {
-    const rec = await resolve(opts.document);
+  const download = async (opts: { notebook: string }): Promise<{ name: string; mime: string; base64: string }> => {
+    const rec = await resolve(opts.notebook);
     const ft = rec.content?.fileType;
     if (ft !== "pdf" && ft !== "epub") throw new Error("download only supports pdf/epub");
     const data = await fs.readFile(`${rec.id}.${ft}`);
@@ -220,11 +263,11 @@ export function createApi(fs: TabletFs) {
   const loadPageIds = (rec: Rec): string[] => pageIds(rec.content ?? notebookContent([]));
 
   const exportPage = async (opts: {
-    document: string;
+    notebook: string;
     page?: number;
     format?: "png" | "svg";
   }): Promise<{ mime: string; base64: string; page: number }> => {
-    const rec = await resolve(opts.document);
+    const rec = await resolve(opts.notebook);
     const ids = loadPageIds(rec);
     const page = opts.page ?? 1;
     const pid = ids[page - 1];
@@ -267,25 +310,25 @@ export function createApi(fs: TabletFs) {
     return afterWrite({ id, meta, content });
   };
 
-  const move = async (opts: { document: string; folder: string }): Promise<Item> => {
+  const move = async (opts: { notebook: string; folder: string }): Promise<Item> => {
     const recs = await load();
-    const rec = await resolve(opts.document, Promise.resolve(recs));
+    const rec = await resolve(opts.notebook, Promise.resolve(recs));
     rec.meta.parent = await resolveFolder(opts.folder, recs);
     touch(rec.meta);
     await saveMeta(rec.id, rec.meta);
     return afterWrite(rec);
   };
 
-  const rename = async (opts: { document: string; name: string }): Promise<Item> => {
-    const rec = await resolve(opts.document);
+  const rename = async (opts: { notebook: string; name: string }): Promise<Item> => {
+    const rec = await resolve(opts.notebook);
     rec.meta.visibleName = opts.name;
     touch(rec.meta);
     await saveMeta(rec.id, rec.meta);
     return afterWrite(rec);
   };
 
-  const remove = async (opts: { document: string }): Promise<Item> => {
-    const rec = await resolve(opts.document);
+  const remove = async (opts: { notebook: string }): Promise<Item> => {
+    const rec = await resolve(opts.notebook);
     rec.meta.parent = "trash";
     rec.meta.deleted = false;
     touch(rec.meta);
@@ -307,8 +350,8 @@ export function createApi(fs: TabletFs) {
     return afterWrite({ id, meta, content });
   };
 
-  const addPage = async (opts: { document: string; after?: number }): Promise<Item> => {
-    const rec = await resolve(opts.document);
+  const addPage = async (opts: { notebook: string; after?: number }): Promise<Item> => {
+    const rec = await resolve(opts.notebook);
     const content = rec.content ?? notebookContent([]);
     const ids = [...loadPageIds(rec)];
     const pageId = crypto.randomUUID();
@@ -320,11 +363,11 @@ export function createApi(fs: TabletFs) {
     await saveContent(rec.id, rec.content);
     await fs.mkdirp(rec.id);
     await fs.writeFile(pageFile(rec.id, pageId), blankPage());
-    return afterWrite(rec);
+    return { ...(await afterWrite(rec)), page: at + 1 };
   };
 
-  const removePage = async (opts: { document: string; page: number }): Promise<Item> => {
-    const rec = await resolve(opts.document);
+  const removePage = async (opts: { notebook: string; page: number }): Promise<Item> => {
+    const rec = await resolve(opts.notebook);
     const content = rec.content ?? notebookContent([]);
     const ids = [...loadPageIds(rec)];
     const pid = ids[opts.page - 1];
@@ -338,8 +381,8 @@ export function createApi(fs: TabletFs) {
     return afterWrite(rec);
   };
 
-  const writeInk = async (opts: { document: string; strokes: StrokeIn[]; page?: number }): Promise<Item> => {
-    const rec = await resolve(opts.document);
+  const writeInk = async (opts: { notebook: string; strokes: StrokeIn[]; page?: number }): Promise<Item> => {
+    const rec = await resolve(opts.notebook);
     const ids = loadPageIds(rec);
     const page = opts.page ?? (ids.length || 1);
     const pid = ids[page - 1];
@@ -350,40 +393,44 @@ export function createApi(fs: TabletFs) {
     await fs.writeFile(path, appendStrokes(prev, opts.strokes));
     touch(rec.meta);
     await saveMeta(rec.id, rec.meta);
-    return afterWrite(rec);
+    return { ...(await afterWrite(rec)), page };
   };
 
   const writeText = async (opts: {
-    document: string;
-    text: string;
+    notebook: string;
+    text?: string;
+    style?: TextStyle;
+    checked?: boolean;
+    blocks?: NativePara[];
     page?: number;
     newPage?: boolean;
-    style?: TextStyle;
+    replace?: boolean;
   }): Promise<Item> => {
-    let rec = await resolve(opts.document);
-    if (opts.newPage) rec = await resolve((await addPage({ document: rec.id })).id);
+    if (!opts.blocks?.length && opts.text === undefined) throw new Error("text or blocks is required");
+    let rec = await resolve(opts.notebook);
+    if (opts.newPage) rec = await resolve((await addPage({ notebook: rec.id })).id);
     const ids = loadPageIds(rec);
     const page = opts.newPage ? ids.length : (opts.page ?? (ids.length || 1));
     const pid = ids[page - 1];
     if (!pid) throw new Error(`page ${page} out of range`);
     const path = pageFile(rec.id, pid);
     const prev = (await fs.exists(path)) ? await fs.readFile(path) : blankPage();
-    if (opts.style) {
-      await fs.writeFile(path, pageWithNativeText(prev, opts.text, opts.style));
-    } else {
-      const { lines } = parseRm(prev);
-      const startY = Math.min(0.9, Math.max(0.08, maxNormY(lines) + 0.04 || 0.08));
-      const wrapped = wrapText(opts.text);
-      const scale = Math.max(1.6, Math.min(4.2, 900 / Math.max(wrapped.length, 8)));
-      await fs.writeFile(path, appendStrokes(prev, textToStrokes(wrapped, 0.08, startY, scale)));
-    }
+    const paras = opts.blocks?.length
+      ? opts.blocks.map((b) => {
+          const style = b.style ?? "body";
+          const p: NativePara = { text: b.text, style };
+          if (style === "checkbox") p.checked = b.checked === true;
+          return p;
+        })
+      : linesToParas(opts.text ?? "", opts.style ?? "body", opts.checked);
+    await fs.writeFile(path, pageWithNativeText(prev, paras, opts.replace === true));
     touch(rec.meta);
     await saveMeta(rec.id, rec.meta);
-    return afterWrite(rec);
+    return { ...(await afterWrite(rec)), page };
   };
 
-  const tag = async (opts: { document: string; tag: string; remove?: boolean; page?: number }): Promise<Item> => {
-    const rec = await resolve(opts.document);
+  const tag = async (opts: { notebook: string; tag: string; remove?: boolean; page?: number }): Promise<Item> => {
+    const rec = await resolve(opts.notebook);
     const content = rec.content ?? (rec.meta.type === "CollectionType" ? folderContent() : notebookContent([]));
     rec.content = content;
     const ts = `1:${Date.now()}`;

@@ -59,28 +59,62 @@ export function appendStrokes(existing: Uint8Array | null, strokes: StrokeIn[]):
   return concat([existing ?? enc(V6), ...added.map((line, i) => v6LineItem(line, 101 + i))]);
 }
 
-/** Type Folio paragraph styles from the on-device Aa menu. */
-export type TextStyle = "title" | "heading" | "body";
+/** Type Folio Aa-menu styles. checkbox uses `checked` for the ticked state. */
+export type TextStyle = "title" | "heading" | "body" | "bullet" | "checkbox";
 
-const STYLE_CODE: Record<TextStyle, number> = { title: 2, heading: 3, body: 1 };
+export type NativePara = {
+  text: string;
+  style: TextStyle;
+  checked?: boolean;
+};
 
-/** v6 page with native typed text. First line gets `style`; later lines are body. */
-export function writeNativeText(text: string, style: TextStyle = "body"): Uint8Array {
+const STYLE_CODE: Record<TextStyle, number> = { title: 2, heading: 3, body: 1, bullet: 4, checkbox: 6 };
+
+export function linesToParas(text: string, style: TextStyle = "body", checked?: boolean): NativePara[] {
+  return text.split("\n").map((line) => {
+    const p: NativePara = { text: line, style };
+    if (style === "checkbox") p.checked = checked === true;
+    return p;
+  });
+}
+
+function styleCode(p: NativePara): number {
+  if (p.style === "checkbox") return p.checked ? 7 : 6;
+  return STYLE_CODE[p.style] ?? 1;
+}
+
+function paraFromCode(code: number, text: string): NativePara {
+  if (code === 7) return { text, style: "checkbox", checked: true };
+  if (code === 6) return { text, style: "checkbox", checked: false };
+  if (code === 2) return { text, style: "title" };
+  if (code === 3) return { text, style: "heading" };
+  if (code === 4 || code === 5) return { text, style: "bullet" };
+  return { text, style: "body" };
+}
+
+/** v6 page with native typed text. One style record per paragraph. */
+export function writeNativeText(paragraphs: NativePara[]): Uint8Array {
+  const parts = paragraphs.length ? paragraphs : [{ text: "", style: "body" as const }];
+  const text = parts.map((p) => p.text).join("\n");
+  const formats: Uint8Array[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i]!;
+    if (i === 0) {
+      formats.push(textFormat(0, 0, 1, 15, styleCode(p)));
+      continue;
+    }
+    let at = 0;
+    for (let j = 0; j < i; j++) at += parts[j]!.text.length + 1;
+    at -= 1;
+    formats.push(textFormat(1, 16 + at, 1, 16 + at, styleCode(p)));
+  }
   const uuid = new Uint8Array(16);
   crypto.getRandomValues(uuid);
-  const lines = text.split("\n").length;
-  const code = STYLE_CODE[style];
-  const formats: Uint8Array[] = [textFormat(0, 0, 1, 15, code)];
-  if (style !== "body") {
-    for (let i = 0; i < text.length; i++) {
-      if (text[i] === "\n") formats.push(textFormat(1, 16 + i, 1, 16 + i, 1));
-    }
-  }
   return concat([
     enc(V6),
     blk(0x09, 1, 1, concat([varuint(1n), sub(0, concat([varuint(16n), uuid, u16(1)]))])),
     blk(0x00, 1, 1, concat([tid(1, 1, 1), tbool(2, true), tbool(3, false)])),
-    blk(0x0a, 0, 1, concat([tint(1, 1), tint(2, 0), tint(3, text.length + 1), tint(4, lines), tint(5, 0)])),
+    blk(0x0a, 0, 1, concat([tint(1, 1), tint(2, 0), tint(3, text.length + 1), tint(4, parts.length), tint(5, 0)])),
     blk(0x01, 1, 1, concat([tid(1, 0, 11), tid(2, 0, 0), tbool(3, true), sub(4, tid(1, 0, 1))])),
     blk(
       0x07,
@@ -110,14 +144,16 @@ export function writeNativeText(text: string, style: TextStyle = "body"): Uint8A
   ]);
 }
 
-export function pageWithNativeText(existing: Uint8Array | null, text: string, style: TextStyle): Uint8Array {
-  const parsed = existing?.length ? parseRm(existing) : { version: 5 as const, lines: [] };
-  const base = writeNativeText(text, style);
-  if (!parsed.lines.length) return base;
-  return concat([base, ...parsed.lines.map((line, i) => v6LineItem(line, 101 + i))]);
+export function pageWithNativeText(existing: Uint8Array | null, paragraphs: NativePara[], replace = false): Uint8Array {
+  const prev = existing?.length ? parseNativeText(existing) : null;
+  const paras = !replace && prev?.paragraphs.length ? [...prev.paragraphs, ...paragraphs] : paragraphs;
+  const base = writeNativeText(paras);
+  const ink = existing?.length ? parseRm(existing).lines : [];
+  if (!ink.length) return base;
+  return concat([base, ...ink.map((line, i) => v6LineItem(line, 101 + i))]);
 }
 
-export function parseNativeText(data: Uint8Array): { text: string; style: number } | null {
+export function parseNativeText(data: Uint8Array): { text: string; paragraphs: NativePara[] } | null {
   const head = new TextDecoder().decode(data.subarray(0, 43));
   if (!head.startsWith("reMarkable .lines file, version=6")) return null;
   let o = 43;
@@ -136,9 +172,9 @@ export function parseNativeText(data: Uint8Array): { text: string; style: number
   return null;
 }
 
-function parseRootText(p: Uint8Array): { text: string; style: number } | null {
+function parseRootText(p: Uint8Array): { text: string; paragraphs: NativePara[] } | null {
   let text = "";
-  let style = 1;
+  const codes: number[] = [];
   for (let i = 0; i + 6 < p.length; i++) {
     if (p[i] === 0x6c) {
       const n = u32le(p, i + 1);
@@ -150,11 +186,14 @@ function parseRootText(p: Uint8Array): { text: string; style: number } | null {
       }
     }
     if (p[i] === 0x2c && p[i + 1] === 2 && p[i + 2] === 0 && p[i + 3] === 0 && p[i + 4] === 0 && p[i + 5] === 17) {
-      const s = p[i + 6];
-      if (s === 1 || s === 2 || s === 3) style = s;
+      const s = p[i + 6] ?? 1;
+      if (s >= 1 && s <= 7) codes.push(s);
     }
   }
-  return text ? { text, style } : null;
+  if (!text && !codes.length) return null;
+  const lines = text.split("\n");
+  const paragraphs = lines.map((line, i) => paraFromCode(codes[i] ?? 1, line));
+  return { text, paragraphs };
 }
 
 function cid(a: number, b: number): Uint8Array {

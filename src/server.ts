@@ -14,6 +14,14 @@ const stroke = z.object({
   color: z.string().optional(),
 });
 
+const textStyle = z.enum(["title", "heading", "body", "bullet", "checkbox"]);
+const block = z.object({
+  text: z.string(),
+  style: textStyle.optional(),
+  checked: z.boolean().optional(),
+});
+const notebook = z.string().describe("Notebook, PDF, EPUB, or folder: UUID, unique name, or /Folder/Name");
+
 export async function createMcpServer(api: Remarkable): Promise<McpServer> {
   const inner = new McpServer({ name: "remarkable", version: "0.1.0" });
   const tool = (
@@ -29,35 +37,35 @@ export async function createMcpServer(api: Remarkable): Promise<McpServer> {
     });
   };
 
-  tool("list", "List documents and folders. Trash is hidden unless includeTrash is true.", {
+  tool("list", "List notebooks, PDFs, EPUBs, and folders. Trash is hidden unless includeTrash is true.", {
     includeTrash: z.boolean().optional(),
     folder: z.string().optional(),
   }, { readOnlyHint: true }, (a) => api.list(a));
 
-  tool("browse", "Browse one folder path (default /). Opening a document returns that item.", {
+  tool("browse", "Browse one folder path (default /). Opening a notebook returns that item.", {
     path: z.string().optional(),
   }, { readOnlyHint: true }, (a) => api.browse(a));
 
-  tool("search", "Search by document name or path, optionally filtered by tag.", {
+  tool("search", "Search by notebook name or path, optionally filtered by tag.", {
     query: z.string(),
     tag: z.string().optional(),
   }, { readOnlyHint: true }, (a) => api.search(a));
 
-  tool("info", "Detailed info for a document or folder (name, id, path, or unique visibleName).", {
-    document: z.string(),
+  tool("info", "Notebook/folder/PDF info. Notebooks include pages[].title from the first typed line.", {
+    notebook,
   }, { readOnlyHint: true }, (a) => api.info(a));
 
-  tool("read", "Extract text from a PDF, EPUB, or notebook page with native Type Folio text.", {
-    document: z.string(),
+  tool("read", "Read a notebook page (native paragraphs + checkbox state). Omit page to read every page. PDFs/EPUBs return extracted text.", {
+    notebook,
     page: z.number().optional(),
   }, { readOnlyHint: true }, (a) => api.read(a));
 
   tool("download", "Download the raw PDF or EPUB as base64.", {
-    document: z.string(),
+    notebook,
   }, { readOnlyHint: true }, (a) => api.download(a));
 
-  tool("exportPage", "Render a notebook page to PNG or SVG (base64).", {
-    document: z.string(),
+  tool("exportPage", "Render ink on a notebook page to PNG or SVG (base64). Does not render typed text.", {
+    notebook,
     page: z.number().optional(),
     format: z.enum(["png", "svg"]).optional(),
   }, { readOnlyHint: true }, (a) => api.exportPage(a));
@@ -74,18 +82,18 @@ export async function createMcpServer(api: Remarkable): Promise<McpServer> {
     parent: z.string().optional(),
   }, { readOnlyHint: false }, (a) => api.mkdir(a));
 
-  tool("move", "Move a document or folder into another folder (use folder: \"/\" for root).", {
-    document: z.string(),
+  tool("move", "Move a notebook or folder into another folder (folder: \"/\" for root).", {
+    notebook,
     folder: z.string(),
   }, { readOnlyHint: false }, (a) => api.move(a));
 
-  tool("rename", "Rename a document or folder.", {
-    document: z.string(),
+  tool("rename", "Rename a notebook or folder.", {
+    notebook,
     name: z.string(),
   }, { readOnlyHint: false }, (a) => api.rename(a));
 
-  tool("remove", "Move a document or folder to trash.", {
-    document: z.string(),
+  tool("remove", "Move a notebook or folder to trash.", {
+    notebook,
   }, { readOnlyHint: false, destructiveHint: true }, (a) => api.remove(a));
 
   tool("createNotebook", "Create a blank notebook with one page.", {
@@ -93,32 +101,35 @@ export async function createMcpServer(api: Remarkable): Promise<McpServer> {
     parent: z.string().optional(),
   }, { readOnlyHint: false }, (a) => api.createNotebook(a));
 
-  tool("addPage", "Append (or insert after N) a blank notebook page.", {
-    document: z.string(),
+  tool("addPage", "Append (or insert after N) a blank notebook page. Returns the new 1-based page number.", {
+    notebook,
     after: z.number().optional(),
   }, { readOnlyHint: false }, (a) => api.addPage(a));
 
   tool("removePage", "Delete a 1-based notebook page.", {
-    document: z.string(),
+    notebook,
     page: z.number(),
   }, { readOnlyHint: false, destructiveHint: true }, (a) => api.removePage(a));
 
-  tool("writeInk", "Append pen/highlighter strokes. Points are normalized [0,1] from the page top-left.", {
-    document: z.string(),
+  tool("writeInk", "Append pen/highlighter strokes to a page. Points are [x,y] in 0–1 from the top-left.", {
+    notebook,
     strokes: z.array(stroke),
     page: z.number().optional(),
   }, { readOnlyHint: false }, (a) => api.writeInk(a));
 
-  tool("writeText", "Write text. style title/heading/body is native Type Folio (big/small). Omit style to draw fineliner strokes. newPage appends a page first.", {
-    document: z.string(),
-    text: z.string(),
+  tool("writeText", "Append native Type Folio text to a notebook page (default: last page). style: title (big), heading, body (small), bullet, checkbox. checked:true ticks a checkbox. blocks: mixed styles in one call. replace:true overwrites typed text (ink stays). newPage:true adds a blank page first. Repeated calls stack as new paragraphs.", {
+    notebook,
+    text: z.string().optional(),
+    style: textStyle.optional(),
+    checked: z.boolean().optional(),
+    blocks: z.array(block).optional(),
     page: z.number().optional(),
     newPage: z.boolean().optional(),
-    style: z.enum(["title", "heading", "body"]).optional(),
+    replace: z.boolean().optional(),
   }, { readOnlyHint: false }, (a) => api.writeText(a));
 
-  tool("tag", "Add or remove a document tag (or a page tag when page is set).", {
-    document: z.string(),
+  tool("tag", "Add or remove a notebook tag (or a page tag when page is set).", {
+    notebook,
     tag: z.string(),
     remove: z.boolean().optional(),
     page: z.number().optional(),
