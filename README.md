@@ -64,7 +64,16 @@ npx -y @lukaisailovic/remarkable-mcp --http
 # → http://127.0.0.1:8080/mcp    health: /health
 ```
 
-Docker still works from a clone: `docker compose up --build` (bind `0.0.0.0:8080`, pass `REMARKABLE_*`).
+Or pull the image from GHCR:
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e REMARKABLE_HOST=10.11.99.1 \
+  -e REMARKABLE_PASSWORD=your-tablet-password \
+  ghcr.io/lukaisailovic/remarkable-mcp:latest
+```
+
+From a clone: `docker compose up --build` (bind `0.0.0.0:8080`, pass `REMARKABLE_*`).
 
 ---
 

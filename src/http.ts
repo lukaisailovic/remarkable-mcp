@@ -44,13 +44,11 @@ export async function startHttp(
       await transport.handleRequest(req, res, req.body);
       return;
     }
-    res
-      .status(400)
-      .json({
-        jsonrpc: "2.0",
-        error: { code: -32000, message: "Bad Request: missing session" },
-        id: null,
-      });
+    res.status(400).json({
+      jsonrpc: "2.0",
+      error: { code: -32000, message: "Bad Request: missing session" },
+      id: null,
+    });
   };
 
   app.post("/mcp", (req, res) => void handle(req, res));

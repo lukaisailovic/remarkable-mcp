@@ -1,9 +1,12 @@
+import { createRequire } from "node:module";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { Remarkable } from "./api.js";
 import { NodeVmExecutor } from "./executor.js";
+
+const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 
 export const EXECUTE_TOOL = "remarkable_execute";
 export const SANDBOX_NS = "rme";
@@ -25,7 +28,7 @@ const notebook = z
   .describe("Notebook, PDF, EPUB, or folder: UUID, unique name, or /Folder/Name");
 
 export async function createMcpServer(api: Remarkable): Promise<McpServer> {
-  const inner = new McpServer({ name: "remarkable", version: "0.1.0" });
+  const inner = new McpServer({ name: "remarkable", version });
   const tool = (
     name: string,
     description: string,
@@ -269,7 +272,7 @@ export async function createMcpServer(api: Remarkable): Promise<McpServer> {
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await inner.connect(serverTransport);
-  const client = new Client({ name: "rme-proxy", version: "0.1.0" });
+  const client = new Client({ name: "rme-proxy", version });
   await client.connect(clientTransport);
   const { tools } = await client.listTools();
   const fns: Record<string, (...args: unknown[]) => Promise<unknown>> = {};
@@ -282,7 +285,7 @@ export async function createMcpServer(api: Remarkable): Promise<McpServer> {
     .map((t) => `  ${t.name}(args): Promise<unknown>; // ${t.description ?? ""}`)
     .join("\n");
   const executor = new NodeVmExecutor();
-  const outer = new McpServer({ name: "remarkable-mcp", version: "0.1.0" });
+  const outer = new McpServer({ name: "remarkable-mcp", version });
   outer.registerTool(
     EXECUTE_TOOL,
     {

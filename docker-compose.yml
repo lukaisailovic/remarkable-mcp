@@ -1,5 +1,6 @@
 services:
   remarkable-mcp:
+    image: ghcr.io/lukaisailovic/remarkable-mcp:latest
     build: .
     ports:
       - "8080:8080"
