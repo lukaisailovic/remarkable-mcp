@@ -8,7 +8,10 @@ import { EXECUTE_TOOL } from "../src/server.js";
 
 describe("streamable HTTP transport", () => {
   it("serves remarkable_execute over /mcp and runs rme.mkdir", async () => {
-    const { url, close } = await startHttp(createApi(new MemoryFs()), { host: "127.0.0.1", port: 0 });
+    const { url, close } = await startHttp(createApi(new MemoryFs()), {
+      host: "127.0.0.1",
+      port: 0,
+    });
     const transport = new StreamableHTTPClientTransport(new URL(url));
     const client = new Client({ name: "http-test", version: "0.0.0" });
     try {

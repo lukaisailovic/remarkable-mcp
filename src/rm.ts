@@ -26,8 +26,10 @@ export class RmError extends Error {
 
 export function parseRm(data: Uint8Array): { version: 5 | 6; lines: Line[] } {
   const head = new TextDecoder().decode(data.subarray(0, 43));
-  if (head.startsWith("reMarkable .lines file, version=5")) return { version: 5, lines: readV5(data) };
-  if (head.startsWith("reMarkable .lines file, version=6")) return { version: 6, lines: readV6(data) };
+  if (head.startsWith("reMarkable .lines file, version=5"))
+    return { version: 5, lines: readV5(data) };
+  if (head.startsWith("reMarkable .lines file, version=6"))
+    return { version: 6, lines: readV6(data) };
   if (data.length === 0) return { version: 5, lines: [] };
   throw new RmError(`unsupported .rm header: ${JSON.stringify(head.slice(0, 40))}`);
 }
@@ -68,9 +70,19 @@ export type NativePara = {
   checked?: boolean;
 };
 
-const STYLE_CODE: Record<TextStyle, number> = { title: 2, heading: 3, body: 1, bullet: 4, checkbox: 6 };
+const STYLE_CODE: Record<TextStyle, number> = {
+  title: 2,
+  heading: 3,
+  body: 1,
+  bullet: 4,
+  checkbox: 6,
+};
 
-export function linesToParas(text: string, style: TextStyle = "body", checked?: boolean): NativePara[] {
+export function linesToParas(
+  text: string,
+  style: TextStyle = "body",
+  checked?: boolean,
+): NativePara[] {
   return text.split("\n").map((line) => {
     const p: NativePara = { text: line, style };
     if (style === "checkbox") p.checked = checked === true;
@@ -114,7 +126,12 @@ export function writeNativeText(paragraphs: NativePara[]): Uint8Array {
     enc(V6),
     blk(0x09, 1, 1, concat([varuint(1n), sub(0, concat([varuint(16n), uuid, u16(1)]))])),
     blk(0x00, 1, 1, concat([tid(1, 1, 1), tbool(2, true), tbool(3, false)])),
-    blk(0x0a, 0, 1, concat([tint(1, 1), tint(2, 0), tint(3, text.length + 1), tint(4, parts.length), tint(5, 0)])),
+    blk(
+      0x0a,
+      0,
+      1,
+      concat([tint(1, 1), tint(2, 0), tint(3, text.length + 1), tint(4, parts.length), tint(5, 0)]),
+    ),
     blk(0x01, 1, 1, concat([tid(1, 0, 11), tid(2, 0, 0), tbool(3, true), sub(4, tid(1, 0, 1))])),
     blk(
       0x07,
@@ -139,21 +156,35 @@ export function writeNativeText(paragraphs: NativePara[]): Uint8Array {
       0x04,
       1,
       1,
-      concat([tid(1, 0, 1), tid(2, 0, 13), tid(3, 0, 0), tid(4, 0, 0), tint(5, 0), sub(6, concat([u8(2), tid(2, 0, 11)]))]),
+      concat([
+        tid(1, 0, 1),
+        tid(2, 0, 13),
+        tid(3, 0, 0),
+        tid(4, 0, 0),
+        tint(5, 0),
+        sub(6, concat([u8(2), tid(2, 0, 11)])),
+      ]),
     ),
   ]);
 }
 
-export function pageWithNativeText(existing: Uint8Array | null, paragraphs: NativePara[], replace = false): Uint8Array {
+export function pageWithNativeText(
+  existing: Uint8Array | null,
+  paragraphs: NativePara[],
+  replace = false,
+): Uint8Array {
   const prev = existing?.length ? parseNativeText(existing) : null;
-  const paras = !replace && prev?.paragraphs.length ? [...prev.paragraphs, ...paragraphs] : paragraphs;
+  const paras =
+    !replace && prev?.paragraphs.length ? [...prev.paragraphs, ...paragraphs] : paragraphs;
   const base = writeNativeText(paras);
   const ink = existing?.length ? parseRm(existing).lines : [];
   if (!ink.length) return base;
   return concat([base, ...ink.map((line, i) => v6LineItem(line, 101 + i))]);
 }
 
-export function parseNativeText(data: Uint8Array): { text: string; paragraphs: NativePara[] } | null {
+export function parseNativeText(
+  data: Uint8Array,
+): { text: string; paragraphs: NativePara[] } | null {
   const head = new TextDecoder().decode(data.subarray(0, 43));
   if (!head.startsWith("reMarkable .lines file, version=6")) return null;
   let o = 43;
@@ -185,7 +216,14 @@ function parseRootText(p: Uint8Array): { text: string; paragraphs: NativePara[] 
         text += new TextDecoder().decode(inner.subarray(len.next + 1));
       }
     }
-    if (p[i] === 0x2c && p[i + 1] === 2 && p[i + 2] === 0 && p[i + 3] === 0 && p[i + 4] === 0 && p[i + 5] === 17) {
+    if (
+      p[i] === 0x2c &&
+      p[i + 1] === 2 &&
+      p[i + 2] === 0 &&
+      p[i + 3] === 0 &&
+      p[i + 4] === 0 &&
+      p[i + 5] === 17
+    ) {
       const s = p[i + 6] ?? 1;
       if (s >= 1 && s <= 7) codes.push(s);
     }
@@ -292,7 +330,12 @@ export function linesToPng(lines: Line[]): Uint8Array {
   return encodePng(w, h, px);
 }
 
-export function textToStrokes(text: string, originX: number, originY: number, scale: number): StrokeIn[] {
+export function textToStrokes(
+  text: string,
+  originX: number,
+  originY: number,
+  scale: number,
+): StrokeIn[] {
   const strokes: StrokeIn[] = [];
   let x = originX;
   let y = originY;
@@ -322,7 +365,14 @@ export function textToStrokes(text: string, originX: number, originY: number, sc
         const y0 = y + ((row + 0.5) * scale) / PAGE_H;
         const x0 = x + ((col + 0.1) * scale) / PAGE_W;
         const x1 = x + ((end - 0.1) * scale) / PAGE_W;
-        strokes.push({ points: [[x0, y0], [x1, y0]], tool: "pen", color: "black" });
+        strokes.push({
+          points: [
+            [x0, y0],
+            [x1, y0],
+          ],
+          tool: "pen",
+          color: "black",
+        });
         col = end;
       }
     }
@@ -417,11 +467,12 @@ function parseV6Line(payload: Uint8Array): Line | null {
       i += 4;
       const inner = payload.subarray(i, i + n);
       i += n;
-      if (index === 6) scanLineValue(inner, (tl, c, pts) => {
-        tool = tl;
-        color = c;
-        points.push(...pts);
-      });
+      if (index === 6)
+        scanLineValue(inner, (tl, c, pts) => {
+          tool = tl;
+          color = c;
+          points.push(...pts);
+        });
     } else if (t === 0x0f) {
       i += 1;
       const id = readVar(payload, i);
@@ -434,7 +485,10 @@ function parseV6Line(payload: Uint8Array): Line | null {
   return points.length ? { tool, color, points } : null;
 }
 
-function scanLineValue(buf: Uint8Array, out: (tool: number, color: number, pts: Point[]) => void): void {
+function scanLineValue(
+  buf: Uint8Array,
+  out: (tool: number, color: number, pts: Point[]) => void,
+): void {
   let i = 0;
   if (buf[0] === 0x03) i = 1;
   let tool = 17;
@@ -458,7 +512,11 @@ function scanLineValue(buf: Uint8Array, out: (tool: number, color: number, pts: 
       i += n;
       if (index === 5) {
         for (let p = 0; p + 14 <= chunk.length; p += 14) {
-          pts.push({ x: f32le(chunk, p), y: f32le(chunk, p + 4), width: u16le(chunk, p + 10) / 100 });
+          pts.push({
+            x: f32le(chunk, p),
+            y: f32le(chunk, p + 4),
+            width: u16le(chunk, p + 10) / 100,
+          });
         }
       }
     } else if (t === 0x01) i += 1;

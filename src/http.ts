@@ -44,7 +44,13 @@ export async function startHttp(
       await transport.handleRequest(req, res, req.body);
       return;
     }
-    res.status(400).json({ jsonrpc: "2.0", error: { code: -32000, message: "Bad Request: missing session" }, id: null });
+    res
+      .status(400)
+      .json({
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Bad Request: missing session" },
+        id: null,
+      });
   };
 
   app.post("/mcp", (req, res) => void handle(req, res));
@@ -65,7 +71,9 @@ export async function startHttp(
     close: async () => {
       for (const t of sessions.values()) await t.close();
       sessions.clear();
-      await new Promise<void>((resolve, reject) => httpServer.close((e) => (e ? reject(e) : resolve())));
+      await new Promise<void>((resolve, reject) =>
+        httpServer.close((e) => (e ? reject(e) : resolve())),
+      );
     },
   };
 }

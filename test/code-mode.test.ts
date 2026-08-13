@@ -31,7 +31,10 @@ describe("code-mode executor", () => {
     expect(value.beforeNames).not.toContain("Projects");
     expect(value.afterNames).toContain("Projects");
 
-    const blocked = await executor.execute(`async () => { return typeof process + typeof require + typeof fetch; }`, []);
+    const blocked = await executor.execute(
+      `async () => { return typeof process + typeof require + typeof fetch; }`,
+      [],
+    );
     expect(blocked.error).toBeUndefined();
     expect(blocked.result).toBe("undefinedundefinedundefined");
   });

@@ -122,7 +122,14 @@ export function fileContent(fileType: "pdf" | "epub", pageCount = 0): Content {
 }
 
 export function folderContent(): Content {
-  return { dummyDocument: false, extraMetadata: {}, fileType: "", pageCount: 0, pages: [], tags: [] };
+  return {
+    dummyDocument: false,
+    extraMetadata: {},
+    fileType: "",
+    pageCount: 0,
+    pages: [],
+    tags: [],
+  };
 }
 
 export function pageIds(c: Content): string[] {
@@ -134,7 +141,13 @@ export function setPageIds(c: Content, ids: string[]): Content {
   if (c.cPages) {
     c.cPages.pages = ids.map((id, i) => {
       const prev = c.cPages?.pages.find((p) => p.id === id);
-      return prev ?? { id, idx: { timestamp: crdtTs(i + 2), value: idxValue(i) }, template: { timestamp: crdtTs(1), value: "Blank" } };
+      return (
+        prev ?? {
+          id,
+          idx: { timestamp: crdtTs(i + 2), value: idxValue(i) },
+          template: { timestamp: crdtTs(1), value: "Blank" },
+        }
+      );
     });
     const first = ids[0];
     if (first) c.cPages.lastOpened = { timestamp: crdtTs(1), value: first };

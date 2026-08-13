@@ -51,7 +51,9 @@ const INJECT = {
 
 /** Same contract as `@cloudflare/codemode` `normalizeCode` — main entry can't load in Node (`cloudflare:workers`). */
 export function normalizeCode(code: string): string {
-  const fenced = code.trim().match(/^```(?:js|javascript|typescript|ts|tsx|jsx)?\s*\n([\s\S]*?)```\s*$/);
+  const fenced = code
+    .trim()
+    .match(/^```(?:js|javascript|typescript|ts|tsx|jsx)?\s*\n([\s\S]*?)```\s*$/);
   const source = (fenced?.[1] ?? code).trim();
   if (!source) return "async () => {}";
   if (/^(async\s*)?\([^)]*\)\s*=>/.test(source)) return source;
@@ -79,7 +81,9 @@ export class NodeVmExecutor implements Executor {
       },
     };
     for (const p of providers) {
-      sandbox[p.name] = Object.fromEntries(Object.entries(p.fns).map(([k, fn]) => [k, (...args: unknown[]) => fn(...args)]));
+      sandbox[p.name] = Object.fromEntries(
+        Object.entries(p.fns).map(([k, fn]) => [k, (...args: unknown[]) => fn(...args)]),
+      );
     }
     const context = createContext(sandbox, {
       name: "remarkable-codemode",
@@ -88,7 +92,8 @@ export class NodeVmExecutor implements Executor {
     try {
       const src = normalizeCode(code);
       const fn = runInContext(`(${src})`, context, { timeout: 15_000, filename: "codemode.js" });
-      if (typeof fn !== "function") return { result: undefined, error: "normalized code is not a function", logs };
+      if (typeof fn !== "function")
+        return { result: undefined, error: "normalized code is not a function", logs };
       const result = await (fn as () => unknown)();
       return { result, logs };
     } catch (e) {

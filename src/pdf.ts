@@ -65,7 +65,10 @@ export async function makeEpub(title: string, html: string): Promise<Uint8Array>
     "OEBPS/content.opf",
     `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" unique-identifier="id" version="2.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${esc(title)}</dc:title><dc:identifier id="id">urn:uuid:${crypto.randomUUID()}</dc:identifier></metadata><manifest><item id="n" href="ch.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="n"/></spine></package>`,
   );
-  zip.file("OEBPS/ch.xhtml", `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${esc(title)}</title></head><body>${html}</body></html>`);
+  zip.file(
+    "OEBPS/ch.xhtml",
+    `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${esc(title)}</title></head><body>${html}</body></html>`,
+  );
   return zip.generateAsync({ type: "uint8array" });
 }
 

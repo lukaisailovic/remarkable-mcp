@@ -36,7 +36,12 @@ describe("rm parse/write", () => {
   });
 
   it("appends strokes onto a blank page and SVG includes the ink", () => {
-    const raw = appendStrokes(blankPage(), [stroke([[0.1, 0.2], [0.8, 0.2]])]);
+    const raw = appendStrokes(blankPage(), [
+      stroke([
+        [0.1, 0.2],
+        [0.8, 0.2],
+      ]),
+    ]);
     const { lines } = parseRm(raw);
     const svg = linesToSvg(lines);
     expect(svg).toContain("<svg");
@@ -45,7 +50,14 @@ describe("rm parse/write", () => {
   });
 
   it("encodes a real PNG whose pixels are not blank paper", () => {
-    const { lines } = parseRm(appendStrokes(null, [stroke([[0.2, 0.3], [0.7, 0.6]])]));
+    const { lines } = parseRm(
+      appendStrokes(null, [
+        stroke([
+          [0.2, 0.3],
+          [0.7, 0.6],
+        ]),
+      ]),
+    );
     const png = linesToPng(lines);
     expect(png[0]).toBe(137);
     expect(String.fromCharCode(...png.subarray(1, 4))).toBe("PNG");
@@ -60,7 +72,9 @@ describe("rm parse/write", () => {
   });
 
   it("rejects unknown .rm headers with a structured error", () => {
-    expect(() => parseRm(new TextEncoder().encode("not a remarkable file!!!!!!!!!!!!!!"))).toThrow(/unsupported/);
+    expect(() => parseRm(new TextEncoder().encode("not a remarkable file!!!!!!!!!!!!!!"))).toThrow(
+      /unsupported/,
+    );
   });
 
   it("writes stackable native title/body/checkbox and keeps ink", () => {
@@ -76,18 +90,39 @@ describe("rm parse/write", () => {
       { text: "Done", style: "checkbox", checked: true },
     ]);
     const again = parseNativeText(stacked);
-    expect(again?.paragraphs.map((p) => p.style)).toEqual(["title", "body", "checkbox", "checkbox"]);
+    expect(again?.paragraphs.map((p) => p.style)).toEqual([
+      "title",
+      "body",
+      "checkbox",
+      "checkbox",
+    ]);
     expect(again?.paragraphs[2]?.checked).toBe(false);
     expect(again?.paragraphs[3]?.checked).toBe(true);
 
-    const withInk = pageWithNativeText(appendStrokes(blankPage(), [stroke([[0.1, 0.1], [0.2, 0.2]])]), [{ text: "Hi", style: "body" }]);
+    const withInk = pageWithNativeText(
+      appendStrokes(blankPage(), [
+        stroke([
+          [0.1, 0.1],
+          [0.2, 0.2],
+        ]),
+      ]),
+      [{ text: "Hi", style: "body" }],
+    );
     expect(parseNativeText(withInk)?.text).toBe("Hi");
     expect(parseRm(withInk).lines.length).toBe(1);
   });
 
   it("appends line items onto a v6 header and parseRm reads them", () => {
     const header = new TextEncoder().encode("reMarkable .lines file, version=6          ");
-    const raw = appendStrokes(header, [{ points: [[0.1, 0.1], [0.2, 0.2]], tool: "pen" }]);
+    const raw = appendStrokes(header, [
+      {
+        points: [
+          [0.1, 0.1],
+          [0.2, 0.2],
+        ],
+        tool: "pen",
+      },
+    ]);
     const parsed = parseRm(raw);
     expect(parsed.version).toBe(6);
     expect(parsed.lines.length).toBe(1);

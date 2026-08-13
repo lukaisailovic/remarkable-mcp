@@ -69,7 +69,7 @@ async () => {
   });
   await rme.writeText({ notebook: "Ideas", text: "Write the RFC", style: "checkbox" });
   return { items, page: await rme.read({ notebook: "Ideas", page: 2 }) };
-}
+};
 ```
 
 A **notebook** is the file (UUID, unique name, or `/Folder/Name`). A **page** is 1-based. `writeText` is native Type Folio text and **appends**; use `replace: true` to overwrite typed text.

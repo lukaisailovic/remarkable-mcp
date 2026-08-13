@@ -82,7 +82,16 @@ describe("library / write / notebook API", () => {
     await rm.writeInk({
       notebook: nb.id,
       page: 1,
-      strokes: [{ points: [[0.1, 0.1], [0.9, 0.1]], tool: "highlighter", color: "yellow" }],
+      strokes: [
+        {
+          points: [
+            [0.1, 0.1],
+            [0.9, 0.1],
+          ],
+          tool: "highlighter",
+          color: "yellow",
+        },
+      ],
     });
     await rm.writeText({ notebook: nb.id, page: 1, text: "hello" });
     const svg = await rm.exportPage({ notebook: nb.id, page: 1, format: "svg" });
@@ -114,8 +123,19 @@ describe("library / write / notebook API", () => {
       ],
     });
     expect(created.page).toBe(2);
-    await rm.writeText({ notebook: "Journal", page: 2, text: "Buy milk\nBuy eggs", style: "checkbox" });
-    await rm.writeText({ notebook: "Journal", page: 2, text: "Stretched", style: "checkbox", checked: true });
+    await rm.writeText({
+      notebook: "Journal",
+      page: 2,
+      text: "Buy milk\nBuy eggs",
+      style: "checkbox",
+    });
+    await rm.writeText({
+      notebook: "Journal",
+      page: 2,
+      text: "Stretched",
+      style: "checkbox",
+      checked: true,
+    });
 
     const got = await rm.read({ notebook: "Journal", page: 2 });
     expect(got.fileType).toBe("notebook");
@@ -131,7 +151,13 @@ describe("library / write / notebook API", () => {
     expect(info.type).toBe("notebook");
     expect(info.pages?.[1]?.title).toBe("Monday");
 
-    await rm.writeText({ notebook: "Journal", page: 2, text: "Only this", style: "heading", replace: true });
+    await rm.writeText({
+      notebook: "Journal",
+      page: 2,
+      text: "Only this",
+      style: "heading",
+      replace: true,
+    });
     expect((await rm.read({ notebook: "Journal", page: 2 })).text).toBe("Only this");
   });
 

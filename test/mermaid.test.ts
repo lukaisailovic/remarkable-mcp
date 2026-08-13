@@ -27,12 +27,14 @@ describe("mermaid → ink", () => {
   });
 
   it("accepts a fenced sequenceDiagram", () => {
-    const strokes = mermaidToStrokes("```mermaid\nsequenceDiagram\n  Alice->>Bob: Hello\n  Bob-->>Alice: Hi\n```");
+    const strokes = mermaidToStrokes(
+      "```mermaid\nsequenceDiagram\n  Alice->>Bob: Hello\n  Bob-->>Alice: Hi\n```",
+    );
     expect(strokes.length).toBeGreaterThan(6);
   });
 
   it("rejects pie and empty source", () => {
-    expect(() => mermaidToStrokes("pie title Pets\n  \"Dogs\" : 1")).toThrow(/unsupported mermaid/i);
+    expect(() => mermaidToStrokes('pie title Pets\n  "Dogs" : 1')).toThrow(/unsupported mermaid/i);
     expect(() => mermaidToStrokes("   ")).toThrow(/empty/);
   });
 

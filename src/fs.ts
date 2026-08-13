@@ -36,7 +36,7 @@ export class MemoryFs implements TabletFs {
   async remove(rel: string): Promise<void> {
     const p = norm(rel);
     this.files.delete(p);
-    for (const k of [...this.files.keys()]) {
+    for (const k of Array.from(this.files.keys())) {
       if (k.startsWith(`${p}/`)) this.files.delete(k);
     }
   }
@@ -187,7 +187,7 @@ export class SshFs implements TabletFs {
 
   async readdir(rel = ""): Promise<Dirent[]> {
     const path = this.p(rel);
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       this.sftp.readdir(path, (err, list) => {
         if (err) resolve([]);
         else resolve(list.map((e) => ({ name: e.filename, dir: (e.attrs.mode & 0o40000) !== 0 })));

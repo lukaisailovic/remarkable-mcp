@@ -12,7 +12,10 @@ export type AppConfig = OpenConfig & {
   httpPort: number;
 };
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env, argv = process.argv.slice(2)): AppConfig {
+export function loadConfig(
+  env: NodeJS.ProcessEnv = process.env,
+  argv = process.argv.slice(2),
+): AppConfig {
   const arg = (name: string): string | undefined => {
     const i = argv.findIndex((a) => a === `--${name}` || a.startsWith(`--${name}=`));
     if (i < 0) return undefined;
@@ -21,7 +24,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, argv = process.
     return argv[i + 1];
   };
   const fakeDir = arg("fake-dir") ?? env.REMARKABLE_FAKE_DIR;
-  const fakeFlag = argv.includes("--fake") || env.REMARKABLE_FAKE === "1" || env.REMARKABLE_FAKE === "true";
+  const fakeFlag =
+    argv.includes("--fake") || env.REMARKABLE_FAKE === "1" || env.REMARKABLE_FAKE === "true";
   const httpFlag =
     argv.includes("--http") ||
     env.MCP_HTTP === "1" ||
@@ -46,16 +50,24 @@ export async function start(cfg = loadConfig()): Promise<void> {
   const api = createApi(fs);
   if (cfg.http) {
     const { url } = await startHttp(api, { host: cfg.httpHost, port: cfg.httpPort });
-    console.error(`remarkable-mcp http ${url} executor=${EXECUTOR_KIND} fake=${Boolean(cfg.fake || cfg.fakeDir)} tablet=${cfg.host}`);
+    console.error(
+      `remarkable-mcp http ${url} executor=${EXECUTOR_KIND} fake=${Boolean(cfg.fake || cfg.fakeDir)} tablet=${cfg.host}`,
+    );
     return;
   }
   const server = await createMcpServer(api);
   await server.connect(new StdioServerTransport());
-  console.error(`remarkable-mcp stdio executor=${EXECUTOR_KIND} fake=${Boolean(cfg.fake || cfg.fakeDir)} host=${cfg.host}`);
+  console.error(
+    `remarkable-mcp stdio executor=${EXECUTOR_KIND} fake=${Boolean(cfg.fake || cfg.fakeDir)} host=${cfg.host}`,
+  );
 }
 
 const entry = process.argv[1]?.replaceAll("\\", "/");
-if (entry?.endsWith("/src/index.ts") || entry?.endsWith("/dist/index.js") || entry?.endsWith("/index.ts")) {
+if (
+  entry?.endsWith("/src/index.ts") ||
+  entry?.endsWith("/dist/index.js") ||
+  entry?.endsWith("/index.ts")
+) {
   start().catch((err) => {
     console.error(err);
     process.exit(1);

@@ -90,10 +90,7 @@ export function createApi(fs: TabletFs) {
       if (!rec) return `/${id}`;
       const parent = rec.meta.parent;
       const name = rec.meta.visibleName;
-      const p =
-        !parent || parent === "trash"
-          ? `/${name}`
-          : `${walk(parent, seen)}/${name}`;
+      const p = !parent || parent === "trash" ? `/${name}` : `${walk(parent, seen)}/${name}`;
       cache.set(id, p);
       return p;
     };
@@ -211,9 +208,16 @@ export function createApi(fs: TabletFs) {
     const ids = loadPageIds(rec);
     const pid = ids[page - 1];
     if (!pid) throw new Error(`page ${page} out of range (1-${ids.length})`);
-    const raw = (await fs.exists(pageFile(rec.id, pid))) ? await fs.readFile(pageFile(rec.id, pid)) : blankPage();
+    const raw = (await fs.exists(pageFile(rec.id, pid)))
+      ? await fs.readFile(pageFile(rec.id, pid))
+      : blankPage();
     const native = parseNativeText(raw);
-    return { fileType: "notebook", page, text: native?.text ?? "", paragraphs: native?.paragraphs ?? [] };
+    return {
+      fileType: "notebook",
+      page,
+      text: native?.text ?? "",
+      paragraphs: native?.paragraphs ?? [],
+    };
   };
 
   const pageSummaries = async (rec: Rec): Promise<{ page: number; title: string }[]> => {
@@ -247,16 +251,29 @@ export function createApi(fs: TabletFs) {
     if (!ids.length) return { fileType: "notebook", text: "", pages: [] };
     const pages: PageText[] = [];
     for (let i = 1; i <= ids.length; i++) pages.push(await readPage(rec, i));
-    return { fileType: "notebook", text: pages.map((p) => p.text).filter(Boolean).join("\n\n"), pages };
+    return {
+      fileType: "notebook",
+      text: pages
+        .map((p) => p.text)
+        .filter(Boolean)
+        .join("\n\n"),
+      pages,
+    };
   };
 
-  const download = async (opts: { notebook: string }): Promise<{ name: string; mime: string; base64: string }> => {
+  const download = async (opts: {
+    notebook: string;
+  }): Promise<{ name: string; mime: string; base64: string }> => {
     const rec = await resolve(opts.notebook);
     const ft = rec.content?.fileType;
     if (ft !== "pdf" && ft !== "epub") throw new Error("download only supports pdf/epub");
     const data = await fs.readFile(`${rec.id}.${ft}`);
     const mime = ft === "pdf" ? "application/pdf" : "application/epub+zip";
-    return { name: `${rec.meta.visibleName}.${ft}`, mime, base64: Buffer.from(data).toString("base64") };
+    return {
+      name: `${rec.meta.visibleName}.${ft}`,
+      mime,
+      base64: Buffer.from(data).toString("base64"),
+    };
   };
 
   const pageFile = (id: string, pageId: string): string => `${id}/${pageId}.rm`;
@@ -273,10 +290,13 @@ export function createApi(fs: TabletFs) {
     const page = opts.page ?? 1;
     const pid = ids[page - 1];
     if (!pid) throw new Error(`page ${page} out of range (1-${ids.length})`);
-    const raw = (await fs.exists(pageFile(rec.id, pid))) ? await fs.readFile(pageFile(rec.id, pid)) : blankPage();
+    const raw = (await fs.exists(pageFile(rec.id, pid)))
+      ? await fs.readFile(pageFile(rec.id, pid))
+      : blankPage();
     const { lines } = parseRm(raw);
     const format = opts.format ?? "png";
-    const bytes = format === "svg" ? new TextEncoder().encode(linesToSvg(lines)) : linesToPng(lines);
+    const bytes =
+      format === "svg" ? new TextEncoder().encode(linesToSvg(lines)) : linesToPng(lines);
     const mime = format === "svg" ? "image/svg+xml" : "image/png";
     return { mime, page, base64: Buffer.from(bytes).toString("base64") };
   };
@@ -356,7 +376,8 @@ export function createApi(fs: TabletFs) {
     const content = rec.content ?? notebookContent([]);
     const ids = [...loadPageIds(rec)];
     const pageId = crypto.randomUUID();
-    const at = opts.after === undefined ? ids.length : Math.max(0, Math.min(ids.length, opts.after));
+    const at =
+      opts.after === undefined ? ids.length : Math.max(0, Math.min(ids.length, opts.after));
     ids.splice(at, 0, pageId);
     rec.content = setPageIds(content, ids);
     touch(rec.meta);
@@ -382,7 +403,11 @@ export function createApi(fs: TabletFs) {
     return afterWrite(rec);
   };
 
-  const writeInk = async (opts: { notebook: string; strokes: StrokeIn[]; page?: number }): Promise<Item> => {
+  const writeInk = async (opts: {
+    notebook: string;
+    strokes: StrokeIn[];
+    page?: number;
+  }): Promise<Item> => {
     const rec = await resolve(opts.notebook);
     const ids = loadPageIds(rec);
     const page = opts.page ?? (ids.length || 1);
@@ -397,8 +422,16 @@ export function createApi(fs: TabletFs) {
     return { ...(await afterWrite(rec)), page };
   };
 
-  const writeMermaid = async (opts: { notebook: string; mermaid: string; page?: number }): Promise<Item> => {
-    return writeInk({ notebook: opts.notebook, page: opts.page, strokes: mermaidToStrokes(opts.mermaid) });
+  const writeMermaid = async (opts: {
+    notebook: string;
+    mermaid: string;
+    page?: number;
+  }): Promise<Item> => {
+    return writeInk({
+      notebook: opts.notebook,
+      page: opts.page,
+      strokes: mermaidToStrokes(opts.mermaid),
+    });
   };
 
   const writeText = async (opts: {
@@ -411,7 +444,8 @@ export function createApi(fs: TabletFs) {
     newPage?: boolean;
     replace?: boolean;
   }): Promise<Item> => {
-    if (!opts.blocks?.length && opts.text === undefined) throw new Error("text or blocks is required");
+    if (!opts.blocks?.length && opts.text === undefined)
+      throw new Error("text or blocks is required");
     let rec = await resolve(opts.notebook);
     if (opts.newPage) rec = await resolve((await addPage({ notebook: rec.id })).id);
     const ids = loadPageIds(rec);
@@ -434,9 +468,15 @@ export function createApi(fs: TabletFs) {
     return { ...(await afterWrite(rec)), page };
   };
 
-  const tag = async (opts: { notebook: string; tag: string; remove?: boolean; page?: number }): Promise<Item> => {
+  const tag = async (opts: {
+    notebook: string;
+    tag: string;
+    remove?: boolean;
+    page?: number;
+  }): Promise<Item> => {
     const rec = await resolve(opts.notebook);
-    const content = rec.content ?? (rec.meta.type === "CollectionType" ? folderContent() : notebookContent([]));
+    const content =
+      rec.content ?? (rec.meta.type === "CollectionType" ? folderContent() : notebookContent([]));
     rec.content = content;
     const ts = `1:${Date.now()}`;
     if (opts.page !== undefined) {
@@ -447,10 +487,14 @@ export function createApi(fs: TabletFs) {
       if (page) {
         page.tags = page.tags ?? [];
         if (opts.remove) page.tags = page.tags.filter((t) => t.name !== opts.tag);
-        else if (!page.tags.some((t) => t.name === opts.tag)) page.tags.push({ name: opts.tag, timestamp: ts });
+        else if (!page.tags.some((t) => t.name === opts.tag))
+          page.tags.push({ name: opts.tag, timestamp: ts });
       }
       content.pageTags = content.pageTags ?? [];
-      if (opts.remove) content.pageTags = content.pageTags.filter((t) => !(t.name === opts.tag && t.pageId === pid));
+      if (opts.remove)
+        content.pageTags = content.pageTags.filter(
+          (t) => !(t.name === opts.tag && t.pageId === pid),
+        );
       else if (!content.pageTags.some((t) => t.name === opts.tag && t.pageId === pid)) {
         content.pageTags.push({ name: opts.tag, pageId: pid, timestamp: ts });
       }

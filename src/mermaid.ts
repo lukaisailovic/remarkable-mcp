@@ -16,7 +16,11 @@ export function mermaidToStrokes(src: string): StrokeIn[] {
 }
 
 export function svgToStrokes(svg: string): StrokeIn[] {
-  const vb = svg.match(/viewBox="([^"]+)"/i)?.[1]?.trim().split(/[\s,]+/).map(Number);
+  const vb = svg
+    .match(/viewBox="([^"]+)"/i)?.[1]
+    ?.trim()
+    .split(/[\s,]+/)
+    .map(Number);
   const x0 = vb?.[0] ?? 0;
   const y0 = vb?.[1] ?? 0;
   const vw = vb?.[2] || Number(svg.match(/\bwidth="([\d.]+)"/)?.[1]) || 1;
@@ -64,7 +68,13 @@ export function svgToStrokes(svg: string): StrokeIn[] {
       [num(tag, "x1"), num(tag, "y1")],
       [num(tag, "x2"), num(tag, "y2")],
     ]);
-    if (/\bmarker-end=/.test(tag)) add(arrow([[num(tag, "x1"), num(tag, "y1")], [num(tag, "x2"), num(tag, "y2")]]));
+    if (/\bmarker-end=/.test(tag))
+      add(
+        arrow([
+          [num(tag, "x1"), num(tag, "y1")],
+          [num(tag, "x2"), num(tag, "y2")],
+        ]),
+      );
   }
   for (const tag of tags(svg, "polyline")) {
     const pts = parsePts(attr(tag, "points"));
@@ -74,7 +84,8 @@ export function svgToStrokes(svg: string): StrokeIn[] {
   }
   for (const tag of tags(svg, "polygon")) {
     const pts = parsePts(attr(tag, "points"));
-    if (pts[0] && pts.at(-1) && (pts[0][0] !== pts.at(-1)![0] || pts[0][1] !== pts.at(-1)![1])) pts.push(pts[0]);
+    if (pts[0] && pts.at(-1) && (pts[0][0] !== pts.at(-1)![0] || pts[0][1] !== pts.at(-1)![1]))
+      pts.push(pts[0]);
     add(pts);
   }
   for (const tag of tags(svg, "path")) {
@@ -89,8 +100,8 @@ export function svgToStrokes(svg: string): StrokeIn[] {
     const y = num(tag, "y") + num(tag, "dy");
     const fs = num(tag, "font-size") || 13;
     const scale = Math.max(1.2, Math.min(3.4, ((fs * s * PAGE_H) / 7) * 0.85));
-    const tw = raw.length * 6 * scale / PAGE_W;
-    const th = 7 * scale / PAGE_H;
+    const tw = (raw.length * 6 * scale) / PAGE_W;
+    const th = (7 * scale) / PAGE_H;
     const mid = (attr(tag, "text-anchor") ?? "start") === "middle";
     const oxn = mid ? nx(x) - tw / 2 : nx(x);
     const oyn = ny(y) - th * 0.75;
@@ -123,7 +134,11 @@ function num(tag: string, name: string): number {
 }
 
 function parsePts(s: string | undefined): [number, number][] {
-  const n = (s ?? "").trim().split(/[\s,]+/).map(Number).filter((v) => Number.isFinite(v));
+  const n = (s ?? "")
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number)
+    .filter((v) => Number.isFinite(v));
   const pts: [number, number][] = [];
   for (let i = 0; i + 1 < n.length; i += 2) pts.push([n[i]!, n[i + 1]!]);
   return pts;

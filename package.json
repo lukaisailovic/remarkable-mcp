@@ -2,35 +2,34 @@
   "name": "remarkable-mcp",
   "version": "0.1.0",
   "description": "SSH-only MCP server for a reMarkable tablet, with Cloudflare Code Mode.",
-  "type": "module",
+  "keywords": [
+    "codemode",
+    "mcp",
+    "remarkable"
+  ],
+  "license": "MIT",
   "bin": {
     "remarkable-mcp": "./dist/index.js"
-  },
-  "exports": {
-    ".": "./dist/index.js"
   },
   "files": [
     "dist",
     "skills"
   ],
-  "engines": {
-    "node": ">=22"
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
   },
-  "packageManager": "pnpm@11.13.0",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "rolldown -c",
     "start": "node dist/index.js",
     "start:http": "node dist/index.js --http",
     "dev": "tsx src/index.ts",
     "dev:http": "tsx src/index.ts --http",
+    "lint": "oxlint --type-aware --type-check",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
     "test": "vitest run"
   },
-  "keywords": [
-    "mcp",
-    "remarkable",
-    "codemode"
-  ],
-  "license": "MIT",
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
     "@cloudflare/codemode": "^0.5.1",
@@ -48,8 +47,16 @@
     "@types/node": "^24.13.3",
     "@types/pngjs": "^6.0.5",
     "@types/ssh2": "^1.15.5",
+    "oxfmt": "^0.63.0",
+    "oxlint": "^1.78.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "rolldown": "^1.2.3",
     "tsx": "^4.23.12",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10"
-  }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.13.0"
 }

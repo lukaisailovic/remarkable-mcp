@@ -4,11 +4,11 @@ Give an AI assistant **direct control of your [reMarkable](https://remarkable.co
 
 The assistant gets **one** MCP tool, `remarkable_execute`, and writes a short JavaScript snippet that calls `rme.*` (list, mkdir, write, export, …) in one shot.
 
-| You have | This project is |
-| --- | --- |
-| A reMarkable with **developer mode** | An [MCP](https://modelcontextprotocol.io) server |
-| SSH over USB (`10.11.99.1`) or Wi‑Fi | stdio **or** Streamable HTTP (Docker) |
-| Claude / Cursor / VS Code / any MCP client | SFTP into the tablet’s xochitl library |
+| You have                                   | This project is                                  |
+| ------------------------------------------ | ------------------------------------------------ |
+| A reMarkable with **developer mode**       | An [MCP](https://modelcontextprotocol.io) server |
+| SSH over USB (`10.11.99.1`) or Wi‑Fi       | stdio **or** Streamable HTTP (Docker)            |
+| Claude / Cursor / VS Code / any MCP client | SFTP into the tablet’s xochitl library           |
 
 ---
 
@@ -96,28 +96,28 @@ async () => {
   });
   await rme.writeText({ notebook: "Ideas", text: "Write the RFC", style: "checkbox" });
   return await rme.read({ notebook: "Ideas", page: 2 });
-}
+};
 ```
 
 A **notebook** is the file (name, path `/Work/Notes`, or UUID). A **page** is 1-based inside that notebook. `writeText` always writes native Type Folio text and **appends** — call it again to stack more paragraphs. Ink points are **`[x, y]` in 0–1** from the top-left. `remove` moves to **trash**. Writes restart **xochitl** so the UI refreshes.
 
-| `rme.*` | What it does |
-| --- | --- |
-| `list({ includeTrash?, folder? })` | Library listing (trash hidden by default) |
-| `browse({ path? })` | One folder, or a single notebook |
-| `search({ query, tag? })` | Name / path search, optional tag |
-| `info({ notebook })` | Id, path, type, tags, page count, `pages[].title` |
-| `read({ notebook, page? })` | Native paragraphs (and checkbox state), or all pages if `page` is omitted. PDF/EPUB text. |
-| `download({ notebook })` | Raw PDF/EPUB as base64 |
-| `exportPage({ notebook, page?, format? })` | Ink on a page → `png` or `svg` (typed text is not drawn) |
-| `upload({ name, dataBase64, parent?, fileType? })` | Put a PDF or EPUB on the tablet |
-| `mkdir` / `move` / `rename` / `remove` | Folders and trash |
-| `createNotebook` / `addPage` / `removePage` | Notebooks and pages |
-| `writeInk({ notebook, strokes, page? })` | Pen / highlighter strokes |
-| `writeMermaid({ notebook, mermaid, page? })` | Mermaid → ink (flowchart, sequence, state, class, ER, xychart) |
+| `rme.*`                                                                                | What it does                                                                              |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `list({ includeTrash?, folder? })`                                                     | Library listing (trash hidden by default)                                                 |
+| `browse({ path? })`                                                                    | One folder, or a single notebook                                                          |
+| `search({ query, tag? })`                                                              | Name / path search, optional tag                                                          |
+| `info({ notebook })`                                                                   | Id, path, type, tags, page count, `pages[].title`                                         |
+| `read({ notebook, page? })`                                                            | Native paragraphs (and checkbox state), or all pages if `page` is omitted. PDF/EPUB text. |
+| `download({ notebook })`                                                               | Raw PDF/EPUB as base64                                                                    |
+| `exportPage({ notebook, page?, format? })`                                             | Ink on a page → `png` or `svg` (typed text is not drawn)                                  |
+| `upload({ name, dataBase64, parent?, fileType? })`                                     | Put a PDF or EPUB on the tablet                                                           |
+| `mkdir` / `move` / `rename` / `remove`                                                 | Folders and trash                                                                         |
+| `createNotebook` / `addPage` / `removePage`                                            | Notebooks and pages                                                                       |
+| `writeInk({ notebook, strokes, page? })`                                               | Pen / highlighter strokes                                                                 |
+| `writeMermaid({ notebook, mermaid, page? })`                                           | Mermaid → ink (flowchart, sequence, state, class, ER, xychart)                            |
 | `writeText({ notebook, text?, style?, checked?, blocks?, page?, newPage?, replace? })` | Native Type Folio: `title` `heading` `body` `bullet` `checkbox`. Stacks unless `replace`. |
-| `tag({ notebook, tag, remove?, page? })` / `tags()` | Notebook or page tags |
-| `refresh()` | Restart xochitl |
+| `tag({ notebook, tag, remove?, page? })` / `tags()`                                    | Notebook or page tags                                                                     |
+| `refresh()`                                                                            | Restart xochitl                                                                           |
 
 ---
 
@@ -125,21 +125,21 @@ A **notebook** is the file (name, path `/Work/Notes`, or UUID). A **page** is 1-
 
 Flags and env vars are interchangeable (`--host` ≡ `REMARKABLE_HOST`).
 
-| Tablet | Default | |
-| --- | --- | --- |
-| `REMARKABLE_HOST` / `--host` | `10.11.99.1` | SSH host (USB default) |
-| `REMARKABLE_USER` / `--user` | `root` | SSH user |
-| `REMARKABLE_PORT` / `--port` | `22` | SSH port |
-| `REMARKABLE_PASSWORD` / `--password` | | Password |
-| `REMARKABLE_KEY` / `--key` | `~/.ssh/id_ed25519`, then `id_rsa` | Key path or PEM |
+| Tablet                               | Default                            |                        |
+| ------------------------------------ | ---------------------------------- | ---------------------- |
+| `REMARKABLE_HOST` / `--host`         | `10.11.99.1`                       | SSH host (USB default) |
+| `REMARKABLE_USER` / `--user`         | `root`                             | SSH user               |
+| `REMARKABLE_PORT` / `--port`         | `22`                               | SSH port               |
+| `REMARKABLE_PASSWORD` / `--password` |                                    | Password               |
+| `REMARKABLE_KEY` / `--key`           | `~/.ssh/id_ed25519`, then `id_rsa` | Key path or PEM        |
 
-| Server | Default | |
-| --- | --- | --- |
-| `--http` / `MCP_HTTP=1` | off | Streamable HTTP instead of stdio |
-| `MCP_HTTP_HOST` / `--http-host` | `127.0.0.1` | Bind address (`0.0.0.0` in Docker) |
-| `MCP_HTTP_PORT` / `PORT` / `--http-port` | `8080` | HTTP port |
-| `--fake` / `REMARKABLE_FAKE=1` | off | In-memory tablet (tests, no device) |
-| `--fake-dir` / `REMARKABLE_FAKE_DIR` | | Local directory treated as a xochitl tree |
+| Server                                   | Default     |                                           |
+| ---------------------------------------- | ----------- | ----------------------------------------- |
+| `--http` / `MCP_HTTP=1`                  | off         | Streamable HTTP instead of stdio          |
+| `MCP_HTTP_HOST` / `--http-host`          | `127.0.0.1` | Bind address (`0.0.0.0` in Docker)        |
+| `MCP_HTTP_PORT` / `PORT` / `--http-port` | `8080`      | HTTP port                                 |
+| `--fake` / `REMARKABLE_FAKE=1`           | off         | In-memory tablet (tests, no device)       |
+| `--fake-dir` / `REMARKABLE_FAKE_DIR`     |             | Local directory treated as a xochitl tree |
 
 ---
 
@@ -159,6 +159,9 @@ The skill lives at [`skills/remarkable-mcp/SKILL.md`](skills/remarkable-mcp/SKIL
 
 ```bash
 pnpm test
+pnpm lint
+pnpm fmt
+pnpm build
 pnpm exec tsx src/index.ts --fake
 pnpm exec tsx src/index.ts --fake --http --http-port 8080
 ```
