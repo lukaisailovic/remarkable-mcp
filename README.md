@@ -34,11 +34,10 @@ remarkable_execute({          node:vm sandbox                      SSH/SFTP
 ## Install
 
 ```bash
-pnpm install
-pnpm build
+npx -y @lukaisailovic/remarkable-mcp
 ```
 
-Node 22+. [pnpm](https://pnpm.io) is required.
+Node 22+.
 
 ### Local (stdio)
 
@@ -48,8 +47,8 @@ Most desktop MCP clients spawn a process. Add this (Claude Desktop, Cursor, VS C
 {
   "mcpServers": {
     "remarkable": {
-      "command": "node",
-      "args": ["/absolute/path/to/remarkable-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@lukaisailovic/remarkable-mcp"],
       "env": {
         "REMARKABLE_HOST": "10.11.99.1",
         "REMARKABLE_USER": "root",
@@ -59,6 +58,8 @@ Most desktop MCP clients spawn a process. Add this (Claude Desktop, Cursor, VS C
   }
 }
 ```
+
+From a clone instead: `pnpm install && pnpm build`, then `"command": "node"` and `"args": ["/absolute/path/to/remarkable-mcp/dist/index.js"]`.
 
 Prefer a key? Set `REMARKABLE_KEY` to a private-key path (or the PEM). If unset, `~/.ssh/id_ed25519` then `id_rsa` are tried.
 

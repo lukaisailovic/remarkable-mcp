@@ -12,8 +12,7 @@ The client sees one tool: `remarkable_execute`. Sandbox methods live on `rme`.
 ## Install the server
 
 ```bash
-pnpm install
-pnpm build
+npx -y @lukaisailovic/remarkable-mcp
 ```
 
 ### stdio (local clients)
@@ -22,8 +21,8 @@ pnpm build
 {
   "mcpServers": {
     "remarkable": {
-      "command": "node",
-      "args": ["/absolute/path/to/remarkable-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@lukaisailovic/remarkable-mcp"],
       "env": {
         "REMARKABLE_HOST": "10.11.99.1",
         "REMARKABLE_USER": "root",
@@ -33,6 +32,8 @@ pnpm build
   }
 }
 ```
+
+From a clone: `pnpm install && pnpm build`, then `"command": "node"` and `"args": ["/absolute/path/to/remarkable-mcp/dist/index.js"]`.
 
 ### Streamable HTTP (Docker / remote)
 

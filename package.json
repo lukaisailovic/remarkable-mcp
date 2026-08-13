@@ -1,5 +1,5 @@
 {
-  "name": "remarkable-mcp",
+  "name": "@lukaisailovic/remarkable-mcp",
   "version": "0.1.0",
   "description": "SSH-only MCP server for a reMarkable tablet, with Cloudflare Code Mode.",
   "keywords": [
@@ -7,7 +7,14 @@
     "mcp",
     "remarkable"
   ],
+  "homepage": "https://github.com/lukaisailovic/remarkable-mcp#readme",
+  "bugs": "https://github.com/lukaisailovic/remarkable-mcp/issues",
   "license": "MIT",
+  "author": "Luka Isailovic",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lukaisailovic/remarkable-mcp.git"
+  },
   "bin": {
     "remarkable-mcp": "./dist/index.js"
   },
@@ -18,6 +25,9 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "rolldown -c",
