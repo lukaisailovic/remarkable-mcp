@@ -6,10 +6,13 @@ import {
   linesToPng,
   linesToSvg,
   maxNormY,
+  pageWithNativeText,
+  parseNativeText,
   parseRm,
   textToStrokes,
   wrapText,
   type StrokeIn,
+  type TextStyle,
 } from "./rm.js";
 import {
   decodeJson,
@@ -193,6 +196,13 @@ export function createApi(fs: TabletFs) {
     if (ft === "epub" && (await fs.exists(`${rec.id}.epub`))) {
       return { text: await extractEpubText(await fs.readFile(`${rec.id}.epub`)), fileType: "epub" };
     }
+    const ids = loadPageIds(rec);
+    const page = opts.page ?? 1;
+    const pid = ids[page - 1];
+    if (pid && (await fs.exists(pageFile(rec.id, pid)))) {
+      const native = parseNativeText(await fs.readFile(pageFile(rec.id, pid)));
+      if (native?.text) return { text: native.text, fileType: "notebook" };
+    }
     throw new Error(`no extractable text (fileType=${ft || "notebook"})`);
   };
 
@@ -348,6 +358,7 @@ export function createApi(fs: TabletFs) {
     text: string;
     page?: number;
     newPage?: boolean;
+    style?: TextStyle;
   }): Promise<Item> => {
     let rec = await resolve(opts.document);
     if (opts.newPage) rec = await resolve((await addPage({ document: rec.id })).id);
@@ -357,12 +368,15 @@ export function createApi(fs: TabletFs) {
     if (!pid) throw new Error(`page ${page} out of range`);
     const path = pageFile(rec.id, pid);
     const prev = (await fs.exists(path)) ? await fs.readFile(path) : blankPage();
-    const { lines } = parseRm(prev);
-    const startY = Math.min(0.9, Math.max(0.08, maxNormY(lines) + 0.04 || 0.08));
-    const wrapped = wrapText(opts.text);
-    const scale = Math.max(1.6, Math.min(4.2, 900 / Math.max(wrapped.length, 8)));
-    const strokes = textToStrokes(wrapped, 0.08, startY, scale);
-    await fs.writeFile(path, appendStrokes(prev, strokes));
+    if (opts.style) {
+      await fs.writeFile(path, pageWithNativeText(prev, opts.text, opts.style));
+    } else {
+      const { lines } = parseRm(prev);
+      const startY = Math.min(0.9, Math.max(0.08, maxNormY(lines) + 0.04 || 0.08));
+      const wrapped = wrapText(opts.text);
+      const scale = Math.max(1.6, Math.min(4.2, 900 / Math.max(wrapped.length, 8)));
+      await fs.writeFile(path, appendStrokes(prev, textToStrokes(wrapped, 0.08, startY, scale)));
+    }
     touch(rec.meta);
     await saveMeta(rec.id, rec.meta);
     return afterWrite(rec);

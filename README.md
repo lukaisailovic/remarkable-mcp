@@ -86,7 +86,7 @@ The client only lists **`remarkable_execute`**. Inside the snippet, methods live
 async () => {
   const folder = await rme.mkdir({ name: "Projects" });
   await rme.createNotebook({ name: "Ideas", parent: folder.id });
-  await rme.writeText({ document: "Ideas", text: "Ship it", newPage: true });
+  await rme.writeText({ document: "Ideas", text: "Ship it", style: "title", newPage: true });
   const page = await rme.exportPage({ document: "Ideas", page: 1, format: "png" });
   return { folder: folder.path, page: page.mime };
 }
@@ -100,14 +100,14 @@ Documents resolve by **UUID**, unique **visible name**, or **path** (`/Work/Note
 | `browse({ path? })` | One folder, or a single document |
 | `search({ query, tag? })` | Name / path search, optional tag |
 | `info({ document })` | Id, path, type, tags, page count |
-| `read({ document })` | Text from a PDF or EPUB |
+| `read({ document, page? })` | Text from a PDF, EPUB, or native notebook page |
 | `download({ document })` | Raw PDF/EPUB as base64 |
 | `exportPage({ document, page?, format? })` | Notebook page → `png` or `svg` |
 | `upload({ name, dataBase64, parent?, fileType? })` | Put a PDF or EPUB on the tablet |
 | `mkdir` / `move` / `rename` / `remove` | Folders and trash |
 | `createNotebook` / `addPage` / `removePage` | Native notebooks |
 | `writeInk({ document, strokes, page? })` | Pen / highlighter strokes |
-| `writeText({ document, text, page?, newPage? })` | Text drawn as fineliner strokes |
+| `writeText({ document, text, page?, newPage?, style? })` | `style: "title"\|"heading"\|"body"` is native Type Folio text (big/small). Omit style to draw fineliner strokes. |
 | `tag({ document, tag, remove?, page? })` / `tags()` | Document or page tags |
 | `refresh()` | Restart xochitl |
 

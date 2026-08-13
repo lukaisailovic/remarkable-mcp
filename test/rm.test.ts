@@ -4,8 +4,11 @@ import {
   blankPage,
   linesToPng,
   linesToSvg,
+  pageWithNativeText,
+  parseNativeText,
   parseRm,
   textToStrokes,
+  writeNativeText,
   writeV5,
   type Line,
 } from "../src/rm.js";
@@ -58,6 +61,17 @@ describe("rm parse/write", () => {
 
   it("rejects unknown .rm headers with a structured error", () => {
     expect(() => parseRm(new TextEncoder().encode("not a remarkable file!!!!!!!!!!!!!!"))).toThrow(/unsupported/);
+  });
+
+  it("writes native Type Folio title text that parseNativeText reads back", () => {
+    const raw = writeNativeText("Monday", "title");
+    expect(new TextDecoder().decode(raw.subarray(0, 43))).toContain("version=6");
+    const got = parseNativeText(raw);
+    expect(got?.text).toBe("Monday");
+    expect(got?.style).toBe(2);
+    const withInk = pageWithNativeText(appendStrokes(blankPage(), [stroke([[0.1, 0.1], [0.2, 0.2]])]), "Hi", "body");
+    expect(parseNativeText(withInk)?.text).toBe("Hi");
+    expect(parseRm(withInk).lines.length).toBe(1);
   });
 
   it("appends line items onto a v6 header and parseRm reads them", () => {

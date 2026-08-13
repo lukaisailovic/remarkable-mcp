@@ -59,6 +59,153 @@ export function appendStrokes(existing: Uint8Array | null, strokes: StrokeIn[]):
   return concat([existing ?? enc(V6), ...added.map((line, i) => v6LineItem(line, 101 + i))]);
 }
 
+/** Type Folio paragraph styles from the on-device Aa menu. */
+export type TextStyle = "title" | "heading" | "body";
+
+const STYLE_CODE: Record<TextStyle, number> = { title: 2, heading: 3, body: 1 };
+
+/** v6 page with native typed text. First line gets `style`; later lines are body. */
+export function writeNativeText(text: string, style: TextStyle = "body"): Uint8Array {
+  const uuid = new Uint8Array(16);
+  crypto.getRandomValues(uuid);
+  const lines = text.split("\n").length;
+  const code = STYLE_CODE[style];
+  const formats: Uint8Array[] = [textFormat(0, 0, 1, 15, code)];
+  if (style !== "body") {
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === "\n") formats.push(textFormat(1, 16 + i, 1, 16 + i, 1));
+    }
+  }
+  return concat([
+    enc(V6),
+    blk(0x09, 1, 1, concat([varuint(1n), sub(0, concat([varuint(16n), uuid, u16(1)]))])),
+    blk(0x00, 1, 1, concat([tid(1, 1, 1), tbool(2, true), tbool(3, false)])),
+    blk(0x0a, 0, 1, concat([tint(1, 1), tint(2, 0), tint(3, text.length + 1), tint(4, lines), tint(5, 0)])),
+    blk(0x01, 1, 1, concat([tid(1, 0, 11), tid(2, 0, 0), tbool(3, true), sub(4, tid(1, 0, 1))])),
+    blk(
+      0x07,
+      1,
+      1,
+      concat([
+        tid(1, 0, 0),
+        sub(
+          2,
+          concat([
+            sub(1, sub(1, concat([varuint(1n), textItem(text)]))),
+            sub(2, sub(1, concat([varuint(BigInt(formats.length)), ...formats]))),
+          ]),
+        ),
+        sub(3, concat([f64(-468), f64(234)])),
+        tfloat(4, 936),
+      ]),
+    ),
+    blk(0x02, 1, 1, concat([tid(1, 0, 1), lwwStr(2, 0, 0, ""), lwwBool(3, 0, 0, true)])),
+    blk(0x02, 1, 1, concat([tid(1, 0, 11), lwwStr(2, 0, 12, "Layer 1"), lwwBool(3, 0, 0, true)])),
+    blk(
+      0x04,
+      1,
+      1,
+      concat([tid(1, 0, 1), tid(2, 0, 13), tid(3, 0, 0), tid(4, 0, 0), tint(5, 0), sub(6, concat([u8(2), tid(2, 0, 11)]))]),
+    ),
+  ]);
+}
+
+export function pageWithNativeText(existing: Uint8Array | null, text: string, style: TextStyle): Uint8Array {
+  const parsed = existing?.length ? parseRm(existing) : { version: 5 as const, lines: [] };
+  const base = writeNativeText(text, style);
+  if (!parsed.lines.length) return base;
+  return concat([base, ...parsed.lines.map((line, i) => v6LineItem(line, 101 + i))]);
+}
+
+export function parseNativeText(data: Uint8Array): { text: string; style: number } | null {
+  const head = new TextDecoder().decode(data.subarray(0, 43));
+  if (!head.startsWith("reMarkable .lines file, version=6")) return null;
+  let o = 43;
+  while (o + 8 <= data.length) {
+    const len = u32le(data, o);
+    const type = data[o + 7] ?? 0;
+    const start = o + 8;
+    const end = start + len;
+    if (end > data.length) break;
+    if (type === 0x07) {
+      const got = parseRootText(data.subarray(start, end));
+      if (got) return got;
+    }
+    o = end;
+  }
+  return null;
+}
+
+function parseRootText(p: Uint8Array): { text: string; style: number } | null {
+  let text = "";
+  let style = 1;
+  for (let i = 0; i + 6 < p.length; i++) {
+    if (p[i] === 0x6c) {
+      const n = u32le(p, i + 1);
+      const inner = p.subarray(i + 5, i + 5 + n);
+      if (inner.length !== n) continue;
+      const len = readVar(inner, 0);
+      if (inner[len.next] === 1 && Number(len.v) === inner.length - len.next - 1) {
+        text += new TextDecoder().decode(inner.subarray(len.next + 1));
+      }
+    }
+    if (p[i] === 0x2c && p[i + 1] === 2 && p[i + 2] === 0 && p[i + 3] === 0 && p[i + 4] === 0 && p[i + 5] === 17) {
+      const s = p[i + 6];
+      if (s === 1 || s === 2 || s === 3) style = s;
+    }
+  }
+  return text ? { text, style } : null;
+}
+
+function cid(a: number, b: number): Uint8Array {
+  return concat([u8(a), varuint(BigInt(b))]);
+}
+
+function tid(i: number, a: number, b: number): Uint8Array {
+  return concat([tag(i, 0x0f), cid(a, b)]);
+}
+
+function tbool(i: number, v: boolean): Uint8Array {
+  return concat([tag(i, 0x01), u8(v ? 1 : 0)]);
+}
+
+function tint(i: number, n: number): Uint8Array {
+  return concat([tag(i, 0x04), u32(n)]);
+}
+
+function tfloat(i: number, n: number): Uint8Array {
+  return concat([tag(i, 0x04), f32(n)]);
+}
+
+function sub(i: number, inner: Uint8Array): Uint8Array {
+  return concat([tag(i, 0x0c), u32(inner.length), inner]);
+}
+
+function blk(type: number, minV: number, curV: number, payload: Uint8Array): Uint8Array {
+  return concat([u32(payload.length), u8(0), u8(minV), u8(curV), u8(type), payload]);
+}
+
+function str(i: number, s: string): Uint8Array {
+  const b = enc(s);
+  return sub(i, concat([varuint(BigInt(b.length)), u8(1), b]));
+}
+
+function lwwStr(i: number, ta: number, tb: number, s: string): Uint8Array {
+  return sub(i, concat([tid(1, ta, tb), str(2, s)]));
+}
+
+function lwwBool(i: number, ta: number, tb: number, v: boolean): Uint8Array {
+  return sub(i, concat([tid(1, ta, tb), tbool(2, v)]));
+}
+
+function textItem(text: string): Uint8Array {
+  return sub(0, concat([tid(2, 1, 16), tid(3, 0, 0), tid(4, 0, 0), tint(5, 0), str(6, text)]));
+}
+
+function textFormat(ca: number, cb: number, ta: number, tb: number, code: number): Uint8Array {
+  return concat([cid(ca, cb), tid(1, ta, tb), sub(2, concat([u8(17), u8(code)]))]);
+}
+
 export function strokeToLine(s: StrokeIn): Line {
   const tool = s.tool === "highlighter" ? 5 : 17;
   const color = colorId(s.color);

@@ -47,7 +47,7 @@ export async function createMcpServer(api: Remarkable): Promise<McpServer> {
     document: z.string(),
   }, { readOnlyHint: true }, (a) => api.info(a));
 
-  tool("read", "Extract text from a PDF or EPUB on the tablet.", {
+  tool("read", "Extract text from a PDF, EPUB, or notebook page with native Type Folio text.", {
     document: z.string(),
     page: z.number().optional(),
   }, { readOnlyHint: true }, (a) => api.read(a));
@@ -109,11 +109,12 @@ export async function createMcpServer(api: Remarkable): Promise<McpServer> {
     page: z.number().optional(),
   }, { readOnlyHint: false }, (a) => api.writeInk(a));
 
-  tool("writeText", "Write text as fineliner strokes. Use newPage to append a page first.", {
+  tool("writeText", "Write text. style title/heading/body is native Type Folio (big/small). Omit style to draw fineliner strokes. newPage appends a page first.", {
     document: z.string(),
     text: z.string(),
     page: z.number().optional(),
     newPage: z.boolean().optional(),
+    style: z.enum(["title", "heading", "body"]).optional(),
   }, { readOnlyHint: false }, (a) => api.writeText(a));
 
   tool("tag", "Add or remove a document tag (or a page tag when page is set).", {

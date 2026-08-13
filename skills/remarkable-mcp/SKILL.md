@@ -59,7 +59,7 @@ async () => {
   const docs = await rme.list({});
   const folder = await rme.mkdir({ name: "Projects" });
   await rme.createNotebook({ name: "Ideas", parent: folder.id });
-  await rme.writeText({ document: "Ideas", text: "Ship it", newPage: true });
+  await rme.writeText({ document: "Ideas", text: "Ship it", style: "title", newPage: true });
   const page = await rme.exportPage({ document: "Ideas", page: 1, format: "png" });
   return { docs, page: page.mime };
 }
@@ -68,13 +68,13 @@ async () => {
 Useful calls:
 
 - `rme.list({ includeTrash?, folder? })` / `rme.browse({ path? })` / `rme.search({ query, tag? })` / `rme.info({ document })`
-- `rme.read({ document })` PDF/EPUB text; `rme.download({ document })` raw base64
+- `rme.read({ document, page? })` PDF/EPUB text, or native Type Folio text on a notebook page; `rme.download({ document })` raw base64
 - `rme.exportPage({ document, page?, format? })` PNG or SVG
 - `rme.upload({ name, dataBase64, parent?, fileType? })`
 - `rme.mkdir` / `rme.move` / `rme.rename` / `rme.remove` (trash)
 - `rme.createNotebook` / `rme.addPage` / `rme.removePage`
 - `rme.writeInk({ document, strokes, page? })` points are `[x,y]` in 0–1
-- `rme.writeText({ document, text, page?, newPage? })`
+- `rme.writeText({ document, text, page?, newPage?, style? })` — `style: "title"|"heading"|"body"` is the on-device Aa menu (big/small). Omit style for ink glyphs.
 - `rme.tag({ document, tag, remove?, page? })` / `rme.tags()`
 - `rme.refresh()` restarts xochitl
 

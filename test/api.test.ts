@@ -102,6 +102,15 @@ describe("library / write / notebook API", () => {
     expect((await rm.info({ document: nb.id })).pageCount).toBe(1);
   });
 
+  it("writes native title/body text and read() extracts it", async () => {
+    const { rm } = api();
+    await rm.createNotebook({ name: "Journal" });
+    await rm.writeText({ document: "Journal", text: "Monday\nWalked the dog", style: "title", newPage: true });
+    const got = await rm.read({ document: "Journal", page: 2 });
+    expect(got.fileType).toBe("notebook");
+    expect(got.text).toBe("Monday\nWalked the dog");
+  });
+
   it("adds and removes tags including listing every tag", async () => {
     const { rm } = api();
     await rm.createNotebook({ name: "Tagged" });
