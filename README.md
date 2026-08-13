@@ -1,16 +1,14 @@
 # remarkable-mcp
 
-Give an AI assistant **direct control of your [reMarkable](https://remarkable.com) tablet** — list notes, upload PDFs, export handwriting, write on pages — **over SSH only**.
+Give an AI assistant **direct control of your [reMarkable](https://remarkable.com) tablet** — list notes, upload PDFs, export handwriting, write on pages — over SSH.
 
-No reMarkable Cloud. No USB web interface. No extra accounts.
-
-The assistant does not get a pile of `remarkable_*` tools. It gets **one** MCP tool, `remarkable_execute`, and writes a short JavaScript snippet that calls `rme.*` (list, mkdir, write, export, …) in one shot.
+The assistant gets **one** MCP tool, `remarkable_execute`, and writes a short JavaScript snippet that calls `rme.*` (list, mkdir, write, export, …) in one shot.
 
 | You have | This project is |
 | --- | --- |
 | A reMarkable with **developer mode** | An [MCP](https://modelcontextprotocol.io) server |
-| USB (`10.11.99.1`) or Wi‑Fi SSH | stdio **or** Streamable HTTP (Docker) |
-| Claude / Cursor / VS Code / any MCP client | SSH + SFTP into the tablet’s xochitl library |
+| SSH over USB (`10.11.99.1`) or Wi‑Fi | stdio **or** Streamable HTTP (Docker) |
+| Claude / Cursor / VS Code / any MCP client | SFTP into the tablet’s xochitl library |
 
 ---
 
@@ -28,7 +26,7 @@ remarkable_execute({          node:vm sandbox                      SSH/SFTP
 ```
 
 1. Enable **Settings → General → Developer mode** on the tablet.
-2. Reach it over USB (`root@10.11.99.1`) or Wi‑Fi (IP under About → Copyrights).
+2. SSH in over USB (`root@10.11.99.1`) or Wi‑Fi (IP under About → Copyrights).
 3. Run this server. Point your MCP client at it.
 
 ---
@@ -94,7 +92,7 @@ async () => {
 }
 ```
 
-Documents resolve by **UUID**, unique **visible name**, or **path** (`/Work/Notes`). Pages are **1-based**. Ink points are **`[x, y]` in 0–1** from the top-left. `remove` moves to **trash**, it does not wipe files. Writes restart **xochitl** so the UI refreshes.
+Documents resolve by **UUID**, unique **visible name**, or **path** (`/Work/Notes`). Pages are **1-based**. Ink points are **`[x, y]` in 0–1** from the top-left. `remove` moves to **trash**. Writes restart **xochitl** so the UI refreshes.
 
 | `rme.*` | What it does |
 | --- | --- |
@@ -113,8 +111,6 @@ Documents resolve by **UUID**, unique **visible name**, or **path** (`/Work/Note
 | `tag({ document, tag, remove?, page? })` / `tags()` | Document or page tags |
 | `refresh()` | Restart xochitl |
 
-Not included (on purpose): cloud sync, USB web UI, OCR APIs, splash screens, screenshots.
-
 ---
 
 ## Configuration
@@ -123,7 +119,7 @@ Flags and env vars are interchangeable (`--host` ≡ `REMARKABLE_HOST`).
 
 | Tablet | Default | |
 | --- | --- | --- |
-| `REMARKABLE_HOST` / `--host` | `10.11.99.1` | SSH host (USB address) |
+| `REMARKABLE_HOST` / `--host` | `10.11.99.1` | SSH host (USB default) |
 | `REMARKABLE_USER` / `--user` | `root` | SSH user |
 | `REMARKABLE_PORT` / `--port` | `22` | SSH port |
 | `REMARKABLE_PASSWORD` / `--password` | | Password |
@@ -161,6 +157,6 @@ pnpm exec tsx src/index.ts --fake --http --http-port 8080
 
 Tests use a fake tablet filesystem. A live device is never required.
 
-Inspired by [sammorrowdrums/remarkable-mcp](https://github.com/sammorrowdrums/remarkable-mcp) and [itsfabioroma/remarkable-cli](https://github.com/itsfabioroma/remarkable-cli). This tree is SSH-only and Code Mode first.
+Inspired by [sammorrowdrums/remarkable-mcp](https://github.com/sammorrowdrums/remarkable-mcp) and [itsfabioroma/remarkable-cli](https://github.com/itsfabioroma/remarkable-cli).
 
 MIT. See [LICENSE](LICENSE).
