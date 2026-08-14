@@ -1,0 +1,8 @@
+node_modules
+dist
+*.log
+.pnpm-store
+.vitest
+.env
+.mcp.json
+.grok/
