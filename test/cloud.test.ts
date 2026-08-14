@@ -115,7 +115,7 @@ async function mockSync(opts?: {
       if (opts?.alwaysClash || clash) {
         clash = false;
         generation += 1;
-        if (opts.clashSeed) {
+        if (opts?.clashSeed) {
           for (const [hash, data] of opts.clashSeed.blobs) blobs.set(hash, data);
           rootHash = opts.clashSeed.rootHash;
         }
