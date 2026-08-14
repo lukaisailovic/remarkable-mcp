@@ -1,59 +1,20 @@
 ---
 name: remarkable-mcp
-description: Control a reMarkable tablet via the remarkable-mcp Code Mode server over SSH or rmfakecloud. Use when the user mentions reMarkable, tablet notes, xochitl, e-ink notebooks, uploading PDFs to the tablet, exporting handwritten pages, or managing folders/tags on the device.
+description: >
+  How to use the remarkable-mcp server: call remarkable_execute with JavaScript
+  that uses rme.* to list, read, write, upload, and organize reMarkable
+  notebooks. Use when the user mentions reMarkable, tablet notes, xochitl,
+  e-ink, Type Folio, uploading a PDF/EPUB, exporting handwriting, drawing
+  Mermaid on the tablet, or managing folders/tags. Use when the user runs
+  /remarkable-mcp.
 ---
 
 # remarkable-mcp
 
-MCP server. SSH into the tablet (default) or rmfakecloud sync v3. No official reMarkable Cloud, no USB web interface.
-
-The client sees one tool: `remarkable_execute`. Sandbox methods live on `rme`.
-
-## Install the server
-
-```json
-{
-  "mcpServers": {
-    "remarkable": {
-      "command": "npx",
-      "args": ["-y", "@lukaisailovic/remarkable-mcp"],
-      "env": {
-        "REMARKABLE_HOST": "10.11.99.1",
-        "REMARKABLE_USER": "root",
-        "REMARKABLE_PASSWORD": "your-tablet-password"
-      }
-    }
-  }
-}
-```
-
-HTTP: `npx -y @lukaisailovic/remarkable-mcp --http` → `http://127.0.0.1:8080/mcp`.
-
-### Streamable HTTP (Docker / remote)
-
-```bash
-node dist/index.js --http --http-host 0.0.0.0 --http-port 8080
-# or
-docker compose up --build
-```
-
-Point the client at `http://127.0.0.1:8080/mcp`.
-
-Or a key instead of a password: `REMARKABLE_KEY` = path to a private key (or the PEM itself). Defaults: `root@10.11.99.1:22`, then `~/.ssh/id_ed25519` / `id_rsa`.
-
-Enable developer mode on the tablet first (Settings → General → Developer). USB address is always `10.11.99.1`. Wi‑Fi IP is under About → Copyrights.
-
-rmfakecloud: `RMFAKECLOUD_URL` + `RMFAKECLOUD_TOKEN` (device JWT). Pair once with `--cloud URL --pair CODE` (code from the rmfakecloud UI); save the printed token. Official reMarkable Cloud is not supported.
-
-Fake tablet (tests / no device): `REMARKABLE_FAKE=1` or `--fake`.
-
-## How to call it
-
-Call `remarkable_execute` with a JavaScript async arrow function. Use `rme`.
+The client exposes **one** tool: `remarkable_execute`. Pass a JavaScript **async arrow function**. Methods live on **`rme`**. No TypeScript. No `process` / `require` / `fetch`.
 
 ```js
 async () => {
-  const items = await rme.list({});
   const folder = await rme.mkdir({ name: "Projects" });
   await rme.createNotebook({ name: "Ideas", parent: folder.id });
   await rme.writeText({
@@ -64,29 +25,133 @@ async () => {
       { text: "Talk to design", style: "checkbox" },
     ],
   });
-  await rme.writeText({ notebook: "Ideas", text: "Write the RFC", style: "checkbox" });
-  return { items, page: await rme.read({ notebook: "Ideas", page: 2 }) };
+  return await rme.read({ notebook: "Ideas", page: 2 });
 };
 ```
 
-A **notebook** is the file (UUID, unique name, or `/Folder/Name`). A **page** is 1-based. `writeText` is native Type Folio text and **appends**; use `replace: true` to overwrite typed text.
+Batch related work in **one** call. Writes apply once after the function returns (SSH restarts xochitl; rmfakecloud commits sync). Do not call `refresh()` unless you need an extra apply mid-script. Return only what the user asked for.
 
-Useful calls:
+## Resolve
 
-- `rme.list({ includeTrash?, folder? })` / `rme.browse({ path? })` / `rme.search({ query, tag? })` / `rme.info({ notebook })` — notebooks include `pages[].title`
-- `rme.read({ notebook, page? })` paragraphs + checkbox state; omit `page` for every page. PDF/EPUB text. `rme.download({ notebook })` raw base64
-- `rme.exportPage({ notebook, page?, format? })` ink only → PNG or SVG
-- `rme.upload({ name, dataBase64, parent?, fileType? })`
-- `rme.mkdir` / `rme.move` / `rme.rename` / `rme.remove` (trash)
-- `rme.createNotebook` / `rme.addPage` / `rme.removePage`
-- `rme.writeInk({ notebook, strokes, page? })` points are `[x,y]` in 0–1
-- `rme.writeMermaid({ notebook, mermaid, page? })` flowchart / sequence / state / class / ER / xychart → ink
-- `rme.writeText({ notebook, text?, style?, checked?, blocks?, page?, newPage?, replace? })` — `title` `heading` `body` `bullet` `checkbox`
-- `rme.tag({ notebook, tag, remove?, page? })` / `rme.tags()`
-- `rme.refresh()` apply now (SSH: restart xochitl; rmfakecloud: commit)
+- **notebook** (also used for folders, PDFs, EPUBs): UUID, unique visible name, or `/Folder/Name`. Duplicate names throw `ambiguous name`.
+- **page**: 1-based. Write defaults: last page. `exportPage` defaults to page 1.
+- Ink points: `[x, y]` in **0–1** from the **top-left**.
+- `remove` = trash (`parent: "trash"`), not unlink.
 
-Writes apply once after the tool returns.
+`Item`: `{ id, name, type, fileType, parent, path, pageCount, tags, lastModified, trashed, page?, pages? }`. `type` is `notebook` | `folder` | `pdf` | `epub`.
 
-## Transport
+Page writes (`writeText` / `writeInk` / `writeMermaid` / `addPage` / `removePage` / `exportPage`) are for **notebooks**. PDFs/EPUBs have no ink pages — `read` extracts text, `download` returns bytes.
 
-Default: SSH/SFTP to the xochitl tree. Opt-in: rmfakecloud (`RMFAKECLOUD_URL` / `RMFAKECLOUD_TOKEN` / `--pair`). Do not use official-cloud tokens or the USB web UI (`http://10.11.99.1` as HTTP).
+Handwriting is **not OCR'd**. Typed Type Folio text is in `read`. Ink is in `exportPage`.
+
+`search` matches **name/path** (optional tag), not page text. To find content, `list`/`browse` then `read`.
+
+## Discover
+
+| Call         | Args                         | Returns                                                                                 |
+| ------------ | ---------------------------- | --------------------------------------------------------------------------------------- |
+| `rme.list`   | `{ includeTrash?, folder? }` | Library. Trash hidden unless `includeTrash`. `folder` limits to that folder's children. |
+| `rme.browse` | `{ path? }`                  | One folder (default `/`). A notebook path returns that single item.                     |
+| `rme.search` | `{ query, tag? }`            | Name/path substring. `tag` is an extra filter.                                          |
+| `rme.info`   | `{ notebook }`               | One item. Notebooks include `pages[].title` (first title/heading, else first line).     |
+| `rme.tags`   | `{}`                         | Sorted unique tag names on the tablet.                                                  |
+
+## Read
+
+| Call             | Args                           | Returns                                                                                                                                                      |
+| ---------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `rme.read`       | `{ notebook, page? }`          | Notebook: typed paragraphs + checkbox state. Omit `page` for every page (`text` joined, plus `pages[]`). PDF/EPUB: extracted document text (`page` ignored). |
+| `rme.download`   | `{ notebook }`                 | `{ name, mime, base64 }` for PDF/EPUB only.                                                                                                                  |
+| `rme.exportPage` | `{ notebook, page?, format? }` | Ink → `{ mime, page, base64 }`. `format`: `png` (default) or `svg`. **Does not draw typed text.**                                                            |
+
+Paragraphs: `{ text, style, checked? }` with `style` `title` \| `heading` \| `body` \| `bullet` \| `checkbox`.
+
+## Library
+
+| Call                 | Args                                       | Notes                                                                                                                                                 |
+| -------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rme.mkdir`          | `{ name, parent? }`                        | Create folder. `parent` omitted = root.                                                                                                               |
+| `rme.createNotebook` | `{ name, parent? }`                        | Blank notebook with **one** page.                                                                                                                     |
+| `rme.addPage`        | `{ notebook, after? }`                     | Append, or insert after 1-based `after`. Returns `page` (new number).                                                                                 |
+| `rme.removePage`     | `{ notebook, page }`                       | Delete that page.                                                                                                                                     |
+| `rme.move`           | `{ notebook, folder }`                     | `folder: "/"` is root. Works on notebooks and folders.                                                                                                |
+| `rme.rename`         | `{ notebook, name }`                       | Visible name.                                                                                                                                         |
+| `rme.remove`         | `{ notebook }`                             | Trash. Still listed with `includeTrash: true`.                                                                                                        |
+| `rme.upload`         | `{ name, dataBase64, parent?, fileType? }` | PDF or EPUB. Put the bytes in `dataBase64` inside the snippet — the sandbox cannot read disk or fetch. `fileType` sniffed from name/bytes if omitted. |
+| `rme.tag`            | `{ notebook, tag, remove?, page? }`        | Document tag, or page tag when `page` is set.                                                                                                         |
+| `rme.refresh`        | `{}`                                       | Apply now. Usually unnecessary — execute already flushes.                                                                                             |
+
+## Write
+
+### `rme.writeText`
+
+Native Type Folio text. **Appends** as new paragraphs. Repeated calls stack.
+
+```
+{ notebook, text?, style?, checked?, blocks?, page?, newPage?, replace? }
+```
+
+- Require `text` or `blocks`.
+- `style`: `title` (big), `heading`, `body` (default, small), `bullet`, `checkbox`.
+- `checked: true` ticks a checkbox. Newlines in `text` become separate paragraphs of the same style.
+- `blocks`: mixed styles in one call: `{ text, style?, checked? }[]`.
+- `newPage: true` appends a blank page, then writes there.
+- `replace: true` overwrites **typed** text on that page. Ink stays.
+
+### `rme.writeInk`
+
+```
+{ notebook, strokes, page? }
+```
+
+Each stroke: `{ points: [x, y][], tool?: "pen" | "highlighter", color?: "black" | "gray" | "white" }`. Appends ink. Default page = last.
+
+### `rme.writeMermaid`
+
+```
+{ notebook, mermaid, page? }
+```
+
+Renders to SVG then ink. Supported: flowchart, sequence, state, class, ER, xychart. `pie` / `gantt` / others throw. A mermaid code fence around the source is accepted.
+
+## Recipes
+
+Read a notebook (typed + handwriting):
+
+```js
+async () => {
+  const info = await rme.info({ notebook: "Journal" });
+  const typed = await rme.read({ notebook: "Journal" });
+  const ink = await rme.exportPage({ notebook: "Journal", page: 1, format: "png" });
+  return { info, typed, ink };
+};
+```
+
+Checklist on a new page:
+
+```js
+async () => {
+  return await rme.writeText({
+    notebook: "/Work/Standup",
+    newPage: true,
+    blocks: [
+      { text: "Monday", style: "title" },
+      { text: "Ship the MCP skill", style: "checkbox" },
+      { text: "Already done", style: "checkbox", checked: true },
+    ],
+  });
+};
+```
+
+Upload a PDF (base64 must be in the snippet):
+
+```js
+async () => {
+  return await rme.upload({
+    name: "Q1.pdf",
+    dataBase64: "JVBERi0x...",
+    parent: "Work",
+    fileType: "pdf",
+  });
+};
+```
