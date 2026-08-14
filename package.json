@@ -1,6 +1,6 @@
 {
   "name": "@lukaisailovic/remarkable-mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "MCP server for a reMarkable tablet over SSH or rmfakecloud, with Cloudflare Code Mode.",
   "keywords": [
     "codemode",
