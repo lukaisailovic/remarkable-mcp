@@ -1,9 +1,12 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { cp, mkdir, rm } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { createApi } from "../../src/api.js";
 import { CloudFs, pairDevice } from "../../src/cloud.js";
+import { assertMcpTestLibrary } from "../fixtures/mcp-test/check.js";
 
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -25,6 +28,7 @@ async function compose(...args: string[]): Promise<{ stdout: string; stderr: str
   return exec("docker", ["compose", "-f", composeFile, "-p", project, ...args], {
     cwd: root,
     timeout: 180_000,
+    env: process.env,
   });
 }
 
@@ -74,6 +78,13 @@ describe("e2e rmfakecloud", () => {
     let started = false;
     try {
       if (!external) {
+        const dataDir = process.env.RMFAKECLOUD_E2E_DATA ?? "/tmp/remarkable-mcp-e2e-data";
+        process.env.RMFAKECLOUD_E2E_DATA = dataDir;
+        process.env.RMFAKECLOUD_E2E_USER = `${process.getuid()}:${process.getgid()}`;
+        await rm(dataDir, { recursive: true, force: true });
+        const dest = join(dataDir, "users", email, "sync");
+        await mkdir(dest, { recursive: true });
+        await cp(join(root, "test/fixtures/mcp-test/sync"), dest, { recursive: true });
         await compose("down", "-v", "--remove-orphans").catch(() => undefined);
         await compose("up", "-d", "--pull", "missing");
         started = true;
@@ -97,18 +108,27 @@ describe("e2e rmfakecloud", () => {
       const web = await login(url);
       const code = await newCode(url, web);
       const token = await pairDevice(url, code);
+      const reader = createApi(new CloudFs({ url, token }));
+      await assertMcpTestLibrary(reader);
+
       const writer = createApi(new CloudFs({ url, token }));
       await writer.createNotebook({ name: "E2E Note" });
       await writer.writeText({ notebook: "E2E Note", text: "hello from real rmfakecloud" });
       expect((await writer.flush()).applied).toBe(true);
 
-      const reader = createApi(new CloudFs({ url, token }));
-      const listed = await reader.list({});
-      expect(listed.map((i) => i.name)).toContain("E2E Note");
-      const page = await reader.read({ notebook: "E2E Note", page: 1 });
-      expect(page.text).toContain("hello from real rmfakecloud");
+      const again = createApi(new CloudFs({ url, token }));
+      expect((await again.list({})).map((i) => i.name)).toContain("E2E Note");
+      expect((await again.read({ notebook: "E2E Note", page: 1 })).text).toContain(
+        "hello from real rmfakecloud",
+      );
     } finally {
-      if (started) await compose("down", "-v", "--remove-orphans").catch(() => undefined);
+      if (started) {
+        await compose("down", "-v", "--remove-orphans").catch(() => undefined);
+        await rm(process.env.RMFAKECLOUD_E2E_DATA ?? "/tmp/remarkable-mcp-e2e-data", {
+          recursive: true,
+          force: true,
+        }).catch(() => undefined);
+      }
     }
   }, 180_000);
 });

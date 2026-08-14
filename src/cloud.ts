@@ -70,26 +70,11 @@ export async function pairDevice(
   return res.text();
 }
 
-function xochitlPath(docId: string, cloudName: string): string {
-  if (
-    cloudName.endsWith(".metadata") ||
-    cloudName.endsWith(".content") ||
-    cloudName.endsWith(".pdf") ||
-    cloudName.endsWith(".epub") ||
-    cloudName.endsWith(".pagedata")
-  )
-    return cloudName;
-  return `${docId}/${cloudName}`;
-}
-
-function splitXochitl(rel: string): { id: string; name: string } {
+/** Hash-index names are xochitl paths. Pages are `uuid/page.rm`, not bare `page.rm`. */
+function cloudName(rel: string): { id: string; name: string } {
   const n = norm(rel);
-  const slash = n.indexOf("/");
-  if (slash === -1) {
-    const id = n.replace(/\.(metadata|content|pdf|epub|pagedata)$/i, "");
-    return { id, name: n };
-  }
-  return { id: n.slice(0, slash), name: n.slice(slash + 1) };
+  const id = n.split("/")[0]?.replace(/\.(metadata|content|pdf|epub|pagedata)$/i, "") ?? n;
+  return { id, name: n };
 }
 
 type CloudDoc = { id: string; files: Map<string, IndexEntry> };
@@ -173,8 +158,10 @@ export class CloudFs implements TabletFs {
           const files = parseIndex(new TextDecoder().decode(await this.getBlob(docEnt.hash)));
           const doc: CloudDoc = { id: docEnt.name, files: new Map() };
           for (const f of files) {
-            doc.files.set(f.name, f);
-            remote.set(xochitlPath(doc.id, f.name), f.hash);
+            const name =
+              !f.name.includes("/") && f.name.endsWith(".rm") ? `${doc.id}/${f.name}` : f.name;
+            doc.files.set(name, { ...f, name });
+            remote.set(name, f.hash);
           }
           docs.set(doc.id, doc);
         }
@@ -259,7 +246,7 @@ export class CloudFs implements TabletFs {
       byDoc.set(id, { id, files: new Map(d.files) });
     }
     for (const p of this.dirty) {
-      const { id, name } = splitXochitl(p);
+      const { id, name } = cloudName(p);
       let doc = byDoc.get(id);
       if (!doc) {
         doc = { id, files: new Map() };
@@ -270,6 +257,8 @@ export class CloudFs implements TabletFs {
         const hash = sha256(data);
         await this.putBlob(hash, data);
         doc.files.set(name, { hash, type: FILE, name, subfiles: 0, size: data.byteLength });
+        const slash = name.lastIndexOf("/");
+        if (slash >= 0) doc.files.delete(name.slice(slash + 1));
         this.remote.set(p, hash);
       } else {
         doc.files.delete(name);

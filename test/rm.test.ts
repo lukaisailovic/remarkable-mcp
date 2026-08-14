@@ -36,6 +36,18 @@ describe("rm parse/write", () => {
     expect(parsed.lines[0]?.points[1]?.y).toBeCloseTo(80, 2);
   });
 
+  it("encodes pen strokes at tablet fineliner width", () => {
+    const raw = appendStrokes(blankPage(), [
+      stroke([
+        [0.1, 0.1],
+        [0.2, 0.1],
+      ]),
+    ]);
+    const { version, lines } = parseRm(raw);
+    expect(version).toBe(6);
+    expect(lines[0]?.points[0]?.width).toBeCloseTo(0.16, 2);
+  });
+
   it("appends strokes onto a blank page and SVG includes the ink", () => {
     const raw = appendStrokes(blankPage(), [
       stroke([
@@ -43,7 +55,8 @@ describe("rm parse/write", () => {
         [0.8, 0.2],
       ]),
     ]);
-    const { lines } = parseRm(raw);
+    const { version, lines } = parseRm(raw);
+    expect(version).toBe(6);
     const svg = linesToSvg(lines);
     expect(svg).toContain("<svg");
     expect(svg).toContain("path");
@@ -63,6 +76,23 @@ describe("rm parse/write", () => {
     expect(png[0]).toBe(137);
     expect(String.fromCharCode(...png.subarray(1, 4))).toBe("PNG");
     expect(png.length).toBeGreaterThan(800);
+  });
+
+  it("expands the PNG canvas when ink sits past the default page edge", () => {
+    const png = linesToPng([
+      {
+        tool: 17,
+        color: 0,
+        points: [
+          { x: 1450, y: 100, width: 2 },
+          { x: 1480, y: 100, width: 2 },
+        ],
+      },
+    ]);
+    expect(png[0]).toBe(137);
+    // IHDR width is bytes 16-19 big-endian
+    const width = (png[16]! << 24) | (png[17]! << 16) | (png[18]! << 8) | png[19]!;
+    expect(width).toBeGreaterThan(1404);
   });
 
   it("turns text into strokes that survive parse", () => {

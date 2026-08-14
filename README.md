@@ -199,7 +199,7 @@ pnpm exec tsx src/index.ts --fake --http --http-port 8080
 
 `pnpm test` uses an in-memory tablet and a mock sync-v3 server. A live device is never required.
 
-`pnpm test:e2e` starts [rmfakecloud](https://github.com/ddvk/rmfakecloud) via `docker-compose-test.yml`, pairs, writes a notebook, and reads it back from a second client. Needs Docker. Override the URL with `RMFAKECLOUD_E2E_URL` to point at an already-running server.
+`pnpm test:e2e` starts [rmfakecloud](https://github.com/ddvk/rmfakecloud) via `docker-compose-test.yml`, seeds it with `test/fixtures/mcp-test` (a tablet-verified dump of `/mcp-test`), pairs, reads that tree, then writes a notebook and reads it back from a second client. Needs Docker. Override the URL with `RMFAKECLOUD_E2E_URL` to point at an already-running server (skips seed).
 
 Inspired by [sammorrowdrums/remarkable-mcp](https://github.com/sammorrowdrums/remarkable-mcp) and [itsfabioroma/remarkable-cli](https://github.com/itsfabioroma/remarkable-cli).
 

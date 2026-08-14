@@ -1,0 +1,33 @@
+{
+  "folder": "/mcp-test",
+  "docs": [
+    {
+      "path": "/mcp-test",
+      "type": "folder",
+      "tags": []
+    },
+    {
+      "path": "/mcp-test/Diagram",
+      "type": "notebook",
+      "tags": []
+    },
+    {
+      "path": "/mcp-test/Nested",
+      "type": "folder",
+      "tags": []
+    },
+    {
+      "path": "/mcp-test/Nested/Inside",
+      "type": "notebook",
+      "tags": []
+    },
+    {
+      "path": "/mcp-test/Welcome",
+      "type": "notebook",
+      "tags": [
+        "mcp",
+        "test"
+      ]
+    }
+  ]
+}

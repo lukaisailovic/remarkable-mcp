@@ -51,14 +51,26 @@ export function writeV5(lines: Line[]): Uint8Array {
 }
 
 export function blankPage(): Uint8Array {
-  return writeV5([]);
+  return writeNativeText([{ text: "", style: "body" }]);
 }
 
 export function appendStrokes(existing: Uint8Array | null, strokes: StrokeIn[]): Uint8Array {
-  const parsed = existing?.length ? parseRm(existing) : { version: 5 as const, lines: [] };
   const added = strokes.map(strokeToLine);
-  if (parsed.version === 5) return writeV5([...parsed.lines, ...added]);
-  return concat([existing ?? enc(V6), ...added.map((line, i) => v6LineItem(line, 101 + i))]);
+  if (!existing?.length) {
+    return concat([blankPage(), ...added.map((line, i) => v6LineItem(line, 101 + i))]);
+  }
+  const parsed = parseRm(existing);
+  if (parsed.version === 6) {
+    return concat([
+      existing,
+      ...added.map((line, i) => v6LineItem(line, 101 + parsed.lines.length + i)),
+    ]);
+  }
+  return concat([
+    blankPage(),
+    ...parsed.lines.map((line, i) => v6LineItem(line, 101 + i)),
+    ...added.map((line, i) => v6LineItem(line, 101 + parsed.lines.length + i)),
+  ]);
 }
 
 /** Type Folio Aa-menu styles. checkbox uses `checked` for the ticked state. */
@@ -174,8 +186,8 @@ export function pageWithNativeText(
   replace = false,
 ): Uint8Array {
   const prev = existing?.length ? parseNativeText(existing) : null;
-  const paras =
-    !replace && prev?.paragraphs.length ? [...prev.paragraphs, ...paragraphs] : paragraphs;
+  const kept = prev?.paragraphs.filter((p) => p.text.length) ?? [];
+  const paras = !replace && kept.length ? [...kept, ...paragraphs] : paragraphs;
   const base = writeNativeText(paras);
   const ink = existing?.length ? parseRm(existing).lines : [];
   if (!ink.length) return base;
@@ -292,12 +304,32 @@ export function strokeToLine(s: StrokeIn): Line {
     points: s.points.map(([nx, ny]) => ({
       x: nx * PAGE_W,
       y: ny * PAGE_H,
-      width: s.tool === "highlighter" ? 18 : 2,
+      width: s.tool === "highlighter" ? 1.2 : 0.16,
     })),
   };
 }
 
+/** Canvas that includes the default page plus any ink that sits in the margin. */
+export function inkFrame(lines: Line[], pad = 24): { x0: number; y0: number; w: number; h: number } {
+  let minX = 0;
+  let minY = 0;
+  let maxX = PAGE_W;
+  let maxY = PAGE_H;
+  for (const line of lines) {
+    for (const p of line.points) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+  }
+  const x0 = Math.floor(minX - pad);
+  const y0 = Math.floor(minY - pad);
+  return { x0, y0, w: Math.ceil(maxX + pad) - x0, h: Math.ceil(maxY + pad) - y0 };
+}
+
 export function linesToSvg(lines: Line[]): string {
+  const { x0, y0, w, h } = inkFrame(lines);
   const paths = lines
     .map((line) => {
       if (line.points.length === 0) return "";
@@ -305,17 +337,16 @@ export function linesToSvg(lines: Line[]): string {
         .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
         .join(" ");
       const stroke = line.tool === 5 ? "rgba(255,230,0,0.45)" : "#111";
-      const width = line.points[0]?.width ?? 2;
+      const width = Math.max(1, line.points[0]?.width ?? 2);
       return `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`;
     })
     .filter(Boolean)
     .join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${PAGE_W}" height="${PAGE_H}" viewBox="0 0 ${PAGE_W} ${PAGE_H}"><rect width="100%" height="100%" fill="#fbfbfb"/>${paths}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${x0} ${y0} ${w} ${h}"><rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="#fbfbfb"/>${paths}</svg>`;
 }
 
 export function linesToPng(lines: Line[]): Uint8Array {
-  const w = PAGE_W;
-  const h = PAGE_H;
+  const { x0, y0, w, h } = inkFrame(lines);
   const px = new Uint8Array(w * h * 3);
   px.fill(251);
   for (const line of lines) {
@@ -324,7 +355,19 @@ export function linesToPng(lines: Line[]): Uint8Array {
       const a = line.points[i - 1];
       const c = line.points[i];
       if (!a || !c) continue;
-      drawLine(px, w, h, a.x, a.y, c.x, c.y, r, g, b, Math.max(1, Math.round(a.width ?? 2)));
+      drawLine(
+        px,
+        w,
+        h,
+        a.x - x0,
+        a.y - y0,
+        c.x - x0,
+        c.y - y0,
+        r,
+        g,
+        b,
+        Math.max(1, Math.round(a.width ?? 2)),
+      );
     }
   }
   return encodePng(w, h, px);

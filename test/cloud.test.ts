@@ -12,6 +12,7 @@ import {
 } from "../src/cloud.js";
 import { blankPage } from "../src/rm.js";
 import { defaultMetadata, encodeJson, notebookContent } from "../src/xochitl.js";
+import { assertMcpTestLibrary, loadMcpTestSeed } from "./fixtures/mcp-test/check.js";
 
 type Put = { path: string; body: Uint8Array };
 
@@ -180,6 +181,10 @@ describe("rmfakecloud sync v3", () => {
       expect(rootBlob).toBeTruthy();
       const docs = parseIndex(new TextDecoder().decode(rootBlob!.body));
       expect(docs.length).toBe(1);
+      const fileIdx = mock.puts
+        .map((p) => new TextDecoder().decode(p.body))
+        .find((t) => t.startsWith("3\n") && t.includes(".rm") && !t.includes(":80000000:"));
+      expect(fileIdx).toMatch(/[0-9a-f-]{36}\/[0-9a-f-]{36}\.rm/);
     } finally {
       await mock.close();
     }
@@ -205,6 +210,17 @@ describe("rmfakecloud sync v3", () => {
       const rm = createApi(fs);
       await rm.createNotebook({ name: "Nope" });
       await expect(rm.flush()).rejects.toThrow(/generation clash/);
+    } finally {
+      await mock.close();
+    }
+  });
+
+  it("reads the tablet-verified mcp-test fixture dump", async () => {
+    const seed = await loadMcpTestSeed();
+    const mock = await mockSync({ seed });
+    try {
+      const rm = createApi(new CloudFs({ url: mock.url, token: "dev" }));
+      await assertMcpTestLibrary(rm);
     } finally {
       await mock.close();
     }

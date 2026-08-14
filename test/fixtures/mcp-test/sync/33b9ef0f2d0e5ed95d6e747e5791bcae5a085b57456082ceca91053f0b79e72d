@@ -1,0 +1,155 @@
+{
+    "cPages": {
+        "lastOpened": {
+            "timestamp": "2:1",
+            "value": "f42c2855-66da-4be6-9926-854c893e8364"
+        },
+        "original": {
+            "timestamp": "0:0",
+            "value": -1
+        },
+        "pages": [
+            {
+                "id": "f42c2855-66da-4be6-9926-854c893e8364",
+                "idx": {
+                    "timestamp": "2:2",
+                    "value": "ba"
+                },
+                "template": {
+                    "timestamp": "2:1",
+                    "value": "Blank"
+                }
+            }
+        ],
+        "uuids": [
+            {
+                "first": "c9af840f-39b2-48ea-b2e2-d7c02b66575f",
+                "second": 18
+            },
+            {
+                "first": "d263f57c-e137-4acc-a5eb-409a2dac9a83",
+                "second": 19
+            },
+            {
+                "first": "b42dd15e-e3c6-4b32-9ef7-a1faf4c47604",
+                "second": 16
+            },
+            {
+                "first": "7f1a2b65-fcf7-4fd6-b34c-33c3bbf4bfc9",
+                "second": 14
+            },
+            {
+                "first": "6890290d-0038-47e8-8f93-5569e8e15d1d",
+                "second": 7
+            },
+            {
+                "first": "e4a45ee1-9300-4e2c-bea8-02f1236580c8",
+                "second": 20
+            },
+            {
+                "first": "0b5566fc-d546-4486-ab8f-305380c6e362",
+                "second": 3
+            },
+            {
+                "first": "a4c7ad7d-5d71-4d0c-a07c-6256ac3fe108",
+                "second": 15
+            },
+            {
+                "first": "6dff705b-bb8d-4dd7-ae35-d8c2cd374b8a",
+                "second": 9
+            },
+            {
+                "first": "03d838ed-7925-4b6a-bf45-6ba222c966bd",
+                "second": 2
+            },
+            {
+                "first": "237c507b-4dda-4ed1-9b3d-8a67edff7017",
+                "second": 4
+            },
+            {
+                "first": "c8c26b6b-749f-4721-b6ef-ac8cf5bc5a8c",
+                "second": 17
+            },
+            {
+                "first": "7542aed1-05af-4e31-94c1-c4a96a9b9769",
+                "second": 11
+            },
+            {
+                "first": "4d63ac2b-b8e5-4911-8f3d-2d2b4e18171c",
+                "second": 5
+            },
+            {
+                "first": "a06d3a81-6bd5-5e0b-85d1-d90c2f88b4e9",
+                "second": 1
+            },
+            {
+                "first": "5292d52a-85f6-4540-92a7-9b5f9d66d224",
+                "second": 6
+            },
+            {
+                "first": "72ca7f9d-832c-4854-8b5b-1291bbcd2724",
+                "second": 10
+            },
+            {
+                "first": "6d4e69c1-c82c-4d12-8897-5f94999f3593",
+                "second": 8
+            },
+            {
+                "first": "7b9dd5a6-4d20-44ba-8a69-2b2af1494830",
+                "second": 12
+            },
+            {
+                "first": "e6027f0d-bc3a-4306-b2f7-47d6a0087bb5",
+                "second": 21
+            },
+            {
+                "first": "7ef62d4c-cc20-4afe-b95d-019fcc1b8145",
+                "second": 13
+            }
+        ]
+    },
+    "coverPageNumber": -1,
+    "customZoomCenterX": 0,
+    "customZoomCenterY": 936,
+    "customZoomOrientation": "portrait",
+    "customZoomPageHeight": 1872,
+    "customZoomPageWidth": 1404,
+    "customZoomScale": 1,
+    "documentMetadata": {
+    },
+    "extraMetadata": {
+        "LastActiveTool": "primary",
+        "LastCalligraphyColor": "Red",
+        "LastCalligraphySize": "2",
+        "LastEraserColor": "Black",
+        "LastEraserSize": "2",
+        "LastEraserTool": "Eraser",
+        "LastFinelinerv2Color": "Black",
+        "LastFinelinerv2Size": "2",
+        "LastPen": "Finelinerv2",
+        "LastPencilv2Color": "Black",
+        "LastPencilv2Size": "2",
+        "LastSelectionToolColor": "Black",
+        "LastSelectionToolSize": "2",
+        "LastSharpPencilv2Color": "Black",
+        "LastSharpPencilv2Size": "2",
+        "SecondaryHighlighterv2Color": "ArgbCode",
+        "SecondaryHighlighterv2ColorCode": "4294962549",
+        "SecondaryHighlighterv2Size": "1",
+        "SecondaryPen": "Highlighterv2"
+    },
+    "fileType": "notebook",
+    "fontName": "",
+    "formatVersion": 2,
+    "lineHeight": -1,
+    "orientation": "portrait",
+    "pageCount": 1,
+    "pageTags": [
+    ],
+    "sizeInBytes": "19300",
+    "tags": [
+    ],
+    "textAlignment": "justify",
+    "textScale": 1,
+    "zoomMode": "bestFit"
+}

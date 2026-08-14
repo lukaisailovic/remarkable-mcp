@@ -33,6 +33,7 @@ export function svgToStrokes(svg: string): StrokeIn[] {
   const ny = (y: number) => oy + y * s;
   const map = (pts: [number, number][]): [number, number][] => pts.map(([x, y]) => [nx(x), ny(y)]);
   const strokes: StrokeIn[] = [];
+  const boxes: { x0: number; y0: number; x1: number; y1: number }[] = [];
   const add = (pts: [number, number][]) => {
     if (pts.length >= 2) strokes.push({ points: map(pts), tool: "pen", color: "black" });
   };
@@ -50,6 +51,7 @@ export function svgToStrokes(svg: string): StrokeIn[] {
       [x, y + h],
       [x, y],
     ]);
+    boxes.push({ x0: nx(x), y0: ny(y), x1: nx(x + w), y1: ny(y + h) });
   }
   for (const tag of tags(svg, "circle")) {
     const cx = num(tag, "cx");
@@ -92,20 +94,38 @@ export function svgToStrokes(svg: string): StrokeIn[] {
     if (/\bshadow\b/.test(tag)) continue;
     for (const line of pathToLines(attr(tag, "d") ?? "")) add(line);
   }
-  for (const m of svg.matchAll(/<text\b([^>]*)>([^<]*)<\/text>/gi)) {
-    const raw = decode(m[2] ?? "").trim();
+  const labels: { raw: string; cx: number; cy: number; maxW: number; fs: number }[] = [];
+  for (const m of svg.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/gi)) {
+    const raw = decode((m[2] ?? "").replace(/<[^>]+>/g, "")).trim();
     if (!raw) continue;
     const tag = m[1] ?? "";
-    const x = num(tag, "x");
-    const y = num(tag, "y") + num(tag, "dy");
-    const fs = num(tag, "font-size") || 13;
-    const scale = Math.max(1.2, Math.min(3.4, ((fs * s * PAGE_H) / 7) * 0.85));
-    const tw = (raw.length * 6 * scale) / PAGE_W;
+    const px = nx(num(tag, "x"));
+    const py = ny(num(tag, "y") + num(tag, "dy"));
+    const box =
+      boxes.find((b) => px >= b.x0 && px <= b.x1 && py >= b.y0 && py <= b.y1) ??
+      boxes.toSorted(
+        (a, b) =>
+          (a.x0 + a.x1 - 2 * px) ** 2 +
+          (a.y0 + a.y1 - 2 * py) ** 2 -
+          ((b.x0 + b.x1 - 2 * px) ** 2 + (b.y0 + b.y1 - 2 * py) ** 2),
+      )[0];
+    labels.push({
+      raw,
+      cx: box ? (box.x0 + box.x1) / 2 : px,
+      cy: box ? (box.y0 + box.y1) / 2 : py,
+      maxW: box ? (box.x1 - box.x0) * 0.86 * PAGE_W : Infinity,
+      fs: num(tag, "font-size") || 13,
+    });
+  }
+  let scale = Infinity;
+  for (const lab of labels) {
+    scale = Math.min(scale, (lab.fs * s * PAGE_H) / 7, lab.maxW / (Math.max(1, lab.raw.length) * 6));
+  }
+  if (!Number.isFinite(scale) || scale < 1.6) scale = 1.6;
+  for (const lab of labels) {
+    const tw = (lab.raw.length * 6 * scale) / PAGE_W;
     const th = (7 * scale) / PAGE_H;
-    const mid = (attr(tag, "text-anchor") ?? "start") === "middle";
-    const oxn = mid ? nx(x) - tw / 2 : nx(x);
-    const oyn = ny(y) - th * 0.75;
-    strokes.push(...textToStrokes(raw, oxn, oyn, scale));
+    strokes.push(...textToStrokes(lab.raw, lab.cx - tw / 2, lab.cy - th / 2, scale));
   }
   if (!strokes.length) throw new Error("mermaid produced no drawable shapes");
   return strokes;

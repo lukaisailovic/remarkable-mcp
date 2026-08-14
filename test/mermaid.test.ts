@@ -45,6 +45,35 @@ describe("mermaid → ink", () => {
     expect(strokes[0]?.points.length).toBeGreaterThanOrEqual(4);
   });
 
+  it("centers flowchart labels inside their boxes", () => {
+    const src = "flowchart LR\n  A[MCP] --> B[rmfakecloud]\n  B --> C[Tablet]";
+    const strokes = mermaidToStrokes(src);
+    const boxes = strokes.filter((s) => s.points.length === 5);
+    expect(boxes.length).toBe(3);
+    const heights: number[] = [];
+    for (const box of boxes) {
+      const x0 = Math.min(...box.points.map((p) => p[0]));
+      const x1 = Math.max(...box.points.map((p) => p[0]));
+      const y0 = Math.min(...box.points.map((p) => p[1]));
+      const y1 = Math.max(...box.points.map((p) => p[1]));
+      const hits = strokes.filter((s) => {
+        if (s.points.length !== 2) return false;
+        const mx = (s.points[0]![0] + s.points[1]![0]) / 2;
+        const my = (s.points[0]![1] + s.points[1]![1]) / 2;
+        return mx > x0 && mx < x1 && my > y0 && my < y1;
+      });
+      expect(hits.length).toBeGreaterThan(4);
+      const hxs = hits.flatMap((s) => s.points.map((p) => p[0]));
+      const hys = hits.flatMap((s) => s.points.map((p) => p[1]));
+      const tcx = (Math.min(...hxs) + Math.max(...hxs)) / 2;
+      const tcy = (Math.min(...hys) + Math.max(...hys)) / 2;
+      expect(tcx).toBeCloseTo((x0 + x1) / 2, 1);
+      expect(tcy).toBeCloseTo((y0 + y1) / 2, 1);
+      heights.push(Math.max(...hys) - Math.min(...hys));
+    }
+    expect(Math.max(...heights) / Math.min(...heights)).toBeLessThan(1.35);
+  });
+
   it("writes a notebook page and export includes the ink", async () => {
     const rm = createApi(new MemoryFs());
     await rm.createNotebook({ name: "Charts" });

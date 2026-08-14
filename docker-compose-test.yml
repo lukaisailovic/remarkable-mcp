@@ -1,14 +1,16 @@
 # Optional e2e: real rmfakecloud. Not used by `pnpm test`.
 #   pnpm test:e2e
+# Bind-mounts host data so the test can seed test/fixtures/mcp-test (tmpfs hides dirs from docker cp).
 name: remarkable-mcp-e2e
 services:
   rmfakecloud:
     image: ddvk/rmfakecloud:latest
     ports:
       - "13000:3000"
+    user: "${RMFAKECLOUD_E2E_USER:-1000:1000}"
     environment:
       JWT_SECRET_KEY: e2e-secret-not-for-prod
       DATADIR: /data
       HASH_SCHEMA_VERSION: "3"
-    tmpfs:
-      - /data
+    volumes:
+      - ${RMFAKECLOUD_E2E_DATA:-/tmp/remarkable-mcp-e2e-data}:/data
