@@ -141,7 +141,7 @@ A **notebook** is the file (name, path `/Work/Notes`, or UUID). A **page** is 1-
 | `writeMermaid({ notebook, mermaid, page? })`                                           | Mermaid → ink (flowchart, sequence, state, class, ER, xychart)                            |
 | `writeText({ notebook, text?, style?, checked?, blocks?, page?, newPage?, replace? })` | Native Type Folio: `title` `heading` `body` `bullet` `checkbox`. Stacks unless `replace`. |
 | `tag({ notebook, tag, remove?, page? })` / `tags()`                                    | Notebook or page tags                                                                     |
-| `refresh()`                                                                            | Apply now (SSH: restart xochitl; cloud: commit)                                           |
+| `refresh()`                                                                            | Apply now (SSH: restart xochitl; cloud: pull if remote moved, then commit)                |
 
 ---
 

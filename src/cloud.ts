@@ -146,32 +146,53 @@ export class CloudFs implements TabletFs {
     if (!res.ok) throw new Error(`PUT /sync/v3/files/${hash} ${res.status}`);
   }
 
-  private async ensure(): Promise<void> {
-    if (this.loaded) return;
-    try {
-      const root = await this.getRoot();
-      const docs = new Map<string, CloudDoc>();
-      const remote = new Map<string, string>();
-      if (root.hash) {
-        const index = parseIndex(new TextDecoder().decode(await this.getBlob(root.hash)));
-        for (const docEnt of index) {
-          const files = parseIndex(new TextDecoder().decode(await this.getBlob(docEnt.hash)));
-          const doc: CloudDoc = { id: docEnt.name, files: new Map() };
-          for (const f of files) {
-            const name =
-              !f.name.includes("/") && f.name.endsWith(".rm") ? `${doc.id}/${f.name}` : f.name;
-            doc.files.set(name, { ...f, name });
-            remote.set(name, f.hash);
-          }
-          docs.set(doc.id, doc);
+  /** Fetch the hash tree. Keeps staged writes; drops cached reads. */
+  private async loadTree(root?: { generation: number; hash: string }): Promise<void> {
+    const next = root ?? (await this.getRoot());
+    const docs = new Map<string, CloudDoc>();
+    const remote = new Map<string, string>();
+    if (next.hash) {
+      const index = parseIndex(new TextDecoder().decode(await this.getBlob(next.hash)));
+      for (const docEnt of index) {
+        const files = parseIndex(new TextDecoder().decode(await this.getBlob(docEnt.hash)));
+        const doc: CloudDoc = { id: docEnt.name, files: new Map() };
+        for (const f of files) {
+          const name =
+            !f.name.includes("/") && f.name.endsWith(".rm") ? `${doc.id}/${f.name}` : f.name;
+          doc.files.set(name, { ...f, name });
+          remote.set(name, f.hash);
         }
+        docs.set(doc.id, doc);
       }
-      this.generation = root.generation;
-      this.docs.clear();
-      for (const [id, doc] of docs) this.docs.set(id, doc);
-      this.remote.clear();
-      for (const [p, hash] of remote) this.remote.set(p, hash);
-      this.loaded = true;
+    }
+    this.generation = next.generation;
+    this.docs.clear();
+    for (const [id, doc] of docs) this.docs.set(id, doc);
+    this.remote.clear();
+    for (const [p, hash] of remote) this.remote.set(p, hash);
+    for (const p of this.mem.files.keys()) {
+      if (!this.dirty.has(p)) this.mem.files.delete(p);
+    }
+    for (const p of this.dirty) {
+      if (!this.mem.files.has(p)) this.remote.delete(p);
+    }
+    this.loaded = true;
+  }
+
+  private async ensure(): Promise<void> {
+    if (this.loaded) {
+      const root = await this.getRoot();
+      if (root.generation === this.generation) return;
+      try {
+        await this.loadTree(root);
+      } catch (err) {
+        this.loaded = false;
+        throw err;
+      }
+      return;
+    }
+    try {
+      await this.loadTree();
     } catch (err) {
       this.loaded = false;
       throw err;
@@ -303,8 +324,7 @@ export class CloudFs implements TabletFs {
     if (!clash || attempt >= 1) {
       throw new Error(`cloud apply failed: generation clash (${res.status})`);
     }
-    const fresh = await this.getRoot();
-    this.generation = fresh.generation;
+    await this.loadTree();
     await this.commit(1);
   }
 }

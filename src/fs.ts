@@ -12,7 +12,7 @@ export type TabletFs = {
   readdir(rel?: string): Promise<Dirent[]>;
   mkdirp(rel: string): Promise<void>;
   exists(rel: string): Promise<boolean>;
-  /** Push writes. SSH restarts xochitl; cloud commits the hash tree; memory/local no-op. */
+  /** Push writes. SSH restarts xochitl; cloud pulls if the remote generation moved, then commits; memory/local no-op. */
   apply(): Promise<boolean>;
 };
 

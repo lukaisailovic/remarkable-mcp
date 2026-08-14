@@ -66,6 +66,7 @@ async function mockSync(opts?: {
   alwaysClash?: boolean;
   failRoot?: number;
   seed?: { blobs: Map<string, Uint8Array>; rootHash: string };
+  clashSeed?: { blobs: Map<string, Uint8Array>; rootHash: string };
 }): Promise<{
   url: string;
   close: () => Promise<void>;
@@ -77,7 +78,7 @@ async function mockSync(opts?: {
   const roots: { hash: string; generation: number }[] = [];
   let generation = opts?.seed ? 1 : 0;
   let rootHash = opts?.seed?.rootHash ?? "";
-  let clash = opts?.clashFirst === true;
+  let clash = opts?.clashFirst === true || opts?.clashSeed !== undefined;
   let failRoot = opts?.failRoot ?? 0;
 
   const server: Server = createServer(async (req: IncomingMessage, res) => {
@@ -114,6 +115,10 @@ async function mockSync(opts?: {
       if (opts?.alwaysClash || clash) {
         clash = false;
         generation += 1;
+        if (opts.clashSeed) {
+          for (const [hash, data] of opts.clashSeed.blobs) blobs.set(hash, data);
+          rootHash = opts.clashSeed.rootHash;
+        }
         res.statusCode = 409;
         res.end("generation clash");
         return;
@@ -221,6 +226,72 @@ describe("rmfakecloud sync v3", () => {
     try {
       const rm = createApi(new CloudFs({ url: mock.url, token: "dev" }));
       await assertMcpTestLibrary(rm);
+    } finally {
+      await mock.close();
+    }
+  });
+
+  it("reloads when remote generation moves and there are no local writes", async () => {
+    const seed = seedNotebook("KeepMe");
+    const mock = await mockSync({ seed });
+    try {
+      const a = createApi(new CloudFs({ url: mock.url, token: "dev" }));
+      expect((await a.info({ notebook: "KeepMe" })).pageCount).toBe(1);
+
+      const b = createApi(new CloudFs({ url: mock.url, token: "dev" }));
+      await b.addPage({ notebook: "KeepMe" });
+      expect((await b.flush()).applied).toBe(true);
+
+      expect((await a.info({ notebook: "KeepMe" })).pageCount).toBe(2);
+    } finally {
+      await mock.close();
+    }
+  });
+
+  it("rebases dirty local writes onto a newer remote generation", async () => {
+    const seed = seedNotebook("KeepMe");
+    const mock = await mockSync({ seed });
+    try {
+      const a = createApi(new CloudFs({ url: mock.url, token: "dev" }));
+      expect((await a.info({ notebook: "KeepMe" })).pageCount).toBe(1);
+      const extra = await a.createNotebook({ name: "Extra" });
+
+      const b = createApi(new CloudFs({ url: mock.url, token: "dev" }));
+      await b.addPage({ notebook: "KeepMe" });
+      expect((await b.flush()).applied).toBe(true);
+
+      expect((await a.flush()).applied).toBe(true);
+      expect((await a.list({})).map((i) => i.name).sort()).toEqual(["Extra", "KeepMe"]);
+      expect((await a.info({ notebook: "KeepMe" })).pageCount).toBe(2);
+
+      const rootPuts = mock.puts.filter((p) => {
+        const text = new TextDecoder().decode(p.body);
+        return text.startsWith("3\n") && text.includes(":80000000:");
+      });
+      const ids = parseIndex(new TextDecoder().decode(rootPuts.at(-1)!.body)).map((e) => e.name);
+      expect(ids).toContain(seed.id);
+      expect(ids).toContain(extra.id);
+    } finally {
+      await mock.close();
+    }
+  });
+
+  it("clash retry reloads the remote tree instead of overwriting it", async () => {
+    const tablet = seedNotebook("TabletNote");
+    const mock = await mockSync({ clashSeed: tablet });
+    try {
+      const rm = createApi(new CloudFs({ url: mock.url, token: "dev" }));
+      const extra = await rm.createNotebook({ name: "Extra" });
+      expect((await rm.flush()).applied).toBe(true);
+      expect((await rm.list({})).map((i) => i.name).sort()).toEqual(["Extra", "TabletNote"]);
+
+      const rootPuts = mock.puts.filter((p) => {
+        const text = new TextDecoder().decode(p.body);
+        return text.startsWith("3\n") && text.includes(":80000000:");
+      });
+      const ids = parseIndex(new TextDecoder().decode(rootPuts.at(-1)!.body)).map((e) => e.name);
+      expect(ids).toContain(tablet.id);
+      expect(ids).toContain(extra.id);
     } finally {
       await mock.close();
     }

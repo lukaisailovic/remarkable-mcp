@@ -79,7 +79,7 @@ Paragraphs: `{ text, style, checked? }` with `style` `title` \| `heading` \| `bo
 | `rme.remove`         | `{ notebook }`                             | Trash. Still listed with `includeTrash: true`.                                                                                                        |
 | `rme.upload`         | `{ name, dataBase64, parent?, fileType? }` | PDF or EPUB. Put the bytes in `dataBase64` inside the snippet — the sandbox cannot read disk or fetch. `fileType` sniffed from name/bytes if omitted. |
 | `rme.tag`            | `{ notebook, tag, remove?, page? }`        | Document tag, or page tag when `page` is set.                                                                                                         |
-| `rme.refresh`        | `{}`                                       | Apply now. Usually unnecessary — execute already flushes.                                                                                             |
+| `rme.refresh`        | `{}`                                       | Apply now. Cloud also pulls if the sync generation moved. Usually unnecessary — execute already flushes.                                              |
 
 ## Write
 
