@@ -24,10 +24,7 @@
     {
       "path": "/mcp-test/Welcome",
       "type": "notebook",
-      "tags": [
-        "mcp",
-        "test"
-      ]
+      "tags": ["mcp", "test"]
     }
   ]
 }

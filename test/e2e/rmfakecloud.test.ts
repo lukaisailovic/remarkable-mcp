@@ -80,7 +80,7 @@ describe("e2e rmfakecloud", () => {
       if (!external) {
         const dataDir = process.env.RMFAKECLOUD_E2E_DATA ?? "/tmp/remarkable-mcp-e2e-data";
         process.env.RMFAKECLOUD_E2E_DATA = dataDir;
-        process.env.RMFAKECLOUD_E2E_USER = `${process.getuid()}:${process.getgid()}`;
+        process.env.RMFAKECLOUD_E2E_USER = `${process.getuid?.() ?? 0}:${process.getgid?.() ?? 0}`;
         await rm(dataDir, { recursive: true, force: true });
         const dest = join(dataDir, "users", email, "sync");
         await mkdir(dest, { recursive: true });

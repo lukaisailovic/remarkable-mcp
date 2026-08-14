@@ -10,5 +10,6 @@ export default defineConfig({
     file: "dist/index.js",
     format: "esm",
     sourcemap: true,
+    codeSplitting: false,
   },
 });

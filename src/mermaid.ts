@@ -119,7 +119,11 @@ export function svgToStrokes(svg: string): StrokeIn[] {
   }
   let scale = Infinity;
   for (const lab of labels) {
-    scale = Math.min(scale, (lab.fs * s * PAGE_H) / 7, lab.maxW / (Math.max(1, lab.raw.length) * 6));
+    scale = Math.min(
+      scale,
+      (lab.fs * s * PAGE_H) / 7,
+      lab.maxW / (Math.max(1, lab.raw.length) * 6),
+    );
   }
   if (!Number.isFinite(scale) || scale < 1.6) scale = 1.6;
   for (const lab of labels) {

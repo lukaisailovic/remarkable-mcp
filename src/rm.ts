@@ -310,7 +310,10 @@ export function strokeToLine(s: StrokeIn): Line {
 }
 
 /** Canvas that includes the default page plus any ink that sits in the margin. */
-export function inkFrame(lines: Line[], pad = 24): { x0: number; y0: number; w: number; h: number } {
+export function inkFrame(
+  lines: Line[],
+  pad = 24,
+): { x0: number; y0: number; w: number; h: number } {
   let minX = 0;
   let minY = 0;
   let maxX = PAGE_W;
