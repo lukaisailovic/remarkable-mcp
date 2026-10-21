@@ -22,6 +22,7 @@ export type CPage = {
   id: string;
   idx?: { timestamp?: string; value?: string };
   template?: { timestamp?: string; value?: string };
+  deleted?: { timestamp?: string; value?: number };
   tags?: Tag[];
 };
 
@@ -132,25 +133,39 @@ export function folderContent(): Content {
   };
 }
 
+const isTombstone = (p: CPage): boolean => Boolean(p.deleted?.value);
+
+const idxOf = (p: CPage): string => p.idx?.value ?? "";
+
+/** Firmware keeps deleted pages as tombstones and shows the rest sorted by `idx`, not array order. */
 export function pageIds(c: Content): string[] {
-  if (c.cPages?.pages.length) return c.cPages.pages.map((p) => p.id);
+  if (c.cPages?.pages.length)
+    return c.cPages.pages
+      .filter((p) => !isTombstone(p))
+      .sort((a, b) => (idxOf(a) < idxOf(b) ? -1 : idxOf(a) > idxOf(b) ? 1 : 0))
+      .map((p) => p.id);
   return c.pages ?? [];
 }
 
 export function setPageIds(c: Content, ids: string[]): Content {
   if (c.cPages) {
     const byId = new Map(c.cPages.pages.map((p) => [p.id, p]));
-    c.cPages.pages = ids.map((id, i) => {
+    const pages: CPage[] = [];
+    for (const [i, id] of ids.entries()) {
       const prev = byId.get(id);
-      if (prev) return prev;
-      const left = i > 0 ? byId.get(ids[i - 1] ?? "")?.idx?.value : undefined;
-      const right = i + 1 < ids.length ? byId.get(ids[i + 1] ?? "")?.idx?.value : undefined;
-      return {
+      if (prev) {
+        pages.push(prev);
+        continue;
+      }
+      const left = pages[i - 1]?.idx?.value;
+      const right = byId.get(ids[i + 1] ?? "")?.idx?.value;
+      pages.push({
         id,
         idx: { timestamp: crdtTs(i + 2), value: idxBetween(left, right) },
         template: { timestamp: crdtTs(1), value: "Blank" },
-      };
-    });
+      });
+    }
+    c.cPages.pages = [...pages, ...c.cPages.pages.filter(isTombstone)];
     const first = ids[0];
     if (first) c.cPages.lastOpened = { timestamp: crdtTs(1), value: first };
   } else {

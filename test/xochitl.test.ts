@@ -56,6 +56,25 @@ describe("xochitl parse/write", () => {
     expect(idxBetween("ba", "bb")).toBe("baa");
   });
 
+  it("orders pages by idx and skips firmware tombstones", () => {
+    const c = notebookContent(["a", "b"]);
+    c.cPages!.pages = [
+      { id: "b", idx: { timestamp: "1:3", value: "bh" } },
+      { id: "a", idx: { timestamp: "1:2", value: "bf" } },
+      {
+        id: "gone",
+        idx: { timestamp: "1:2", value: "bg" },
+        deleted: { timestamp: "1:1", value: 1 },
+      },
+    ];
+    expect(pageIds(c)).toEqual(["a", "b"]);
+    setPageIds(c, [...pageIds(c), "new"]);
+    expect(pageIds(c)).toEqual(["a", "b", "new"]);
+    expect(c.cPages?.pages.find((p) => p.id === "new")?.idx?.value).toBe("bi");
+    expect(c.cPages?.pages.some((p) => p.id === "gone")).toBe(true);
+    expect(c.pageCount).toBe(3);
+  });
+
   it("treats trash parent and deleted flag as trashed", () => {
     const a = defaultMetadata("gone", "DocumentType", "trash");
     expect(isTrash(a)).toBe(true);
